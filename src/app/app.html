@@ -1,0 +1,51 @@
+<main class="main-layout">
+  <nav class="sidebar">
+    <div class="logo">
+      <div class="logo-icon"></div>
+      <span>Financia</span>
+    </div>
+
+    <div class="nav-links">
+      <a routerLink="/calculator" routerLinkActive="active" class="nav-item">
+        <i class="icon"></i>
+        Calculadora
+      </a>
+      <a routerLink="/budget" routerLinkActive="active" class="nav-item">
+        <i class="icon"></i>
+        Presupuesto (Próximamente)
+      </a>
+      <a routerLink="/investments" routerLinkActive="active" class="nav-item">
+        <i class="icon"></i>
+        Inversiones
+      </a>
+      <a routerLink="/compound" routerLinkActive="active" class="nav-item">
+        <i class="icon"></i>
+        Apalancamiento
+      </a>
+    </div>
+
+    <div class="user-profile">
+      <div class="avatar"></div>
+      <div class="user-info">
+        <span class="user-name">Alvaro Nolasco</span>
+        <span class="user-rank">Pro User</span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="content-area">
+    <header class="top-bar">
+      <div class="search-bar">
+        <input type="text" placeholder="Buscar herramientas...">
+      </div>
+      <div class="actions">
+        <button class="btn-icon">🔔</button>
+        <button class="btn-premium">Subir a Premium</button>
+      </div>
+    </header>
+
+    <div class="router-wrap">
+      <router-outlet></router-outlet>
+    </div>
+  </div>
+</main>

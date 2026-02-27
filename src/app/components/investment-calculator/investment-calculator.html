@@ -1,0 +1,254 @@
+<div class="calculator-container animate-fade-in" [class.is-embedded]="isEmbedded()">
+  <div class="calculator-header" *ngIf="!isEmbedded()">
+    <h1>Calculadora de Inversiones</h1>
+    <p>Proyecta el crecimiento de tu patrimonio con interés compuesto y aportaciones periódicas.</p>
+  </div>
+
+  <div class="calculator-grid">
+    <!-- Left Panel: Inputs -->
+    <div class="input-panel card-premium">
+      <div class="input-group">
+        <label>{{ isEmbedded() ? 'Capital Propio Adicional' : 'Inversión Inicial' }}</label>
+        <div class="input-wrapper">
+          <span class="currency">$</span>
+          <input type="number" [(ngModel)]="initialInvestment" (ngModelChange)="initialInvestment.set($event)" placeholder="0.00">
+        </div>
+      </div>
+
+      <div class="loan-context-card animate-fade-in" *ngIf="isEmbedded()">
+        <div class="context-label">💰 Capital desde Préstamo</div>
+        <div class="context-value">{{ injectedCapital() | currency }}</div>
+        <p class="context-explanation">Este monto se utiliza como base para la inversión configurada en el paso anterior.</p>
+      </div>
+
+      <div class="input-group">
+        <label>Contribución Mensual</label>
+        <div class="input-wrapper" [style.opacity]="leverage() > 1 ? '0.5' : '1'">
+          <span class="currency">$</span>
+          <input type="number" [(ngModel)]="monthlyContribution" (ngModelChange)="monthlyContribution.set($event)" placeholder="0.00" [disabled]="leverage() > 1">
+        </div>
+      </div>
+
+      <div class="input-group">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <label style="margin-bottom: 0;">Apalancamiento</label>
+          <span class="badge-value">{{ leverage() }}x</span>
+        </div>
+        <div class="slider-wrapper">
+          <input type="range"
+                 min="1"
+                 max="20"
+                 step="1"
+                 [(ngModel)]="leverage"
+                 (ngModelChange)="leverage.set($event)"
+                 class="premium-slider">
+          <div class="slider-labels">
+            <span>1x</span>
+            <span>20x</span>
+          </div>
+        </div>
+
+        <div *ngIf="leverage() >= 7" class="warning-box animate-pulse-slow">
+          <span class="warning-icon">⚠️</span>
+          <p>Un apalancamiento muy alto conlleva un riesgo más alto en volatilidad.</p>
+        </div>
+
+        <small *ngIf="leverage() > 1" style="color: #f59e0b; font-size: 0.75rem; margin-top: 8px; display: block;">
+          * Contribuciones mensuales desactivadas al usar apalancamiento.
+        </small>
+      </div>
+
+      <div class="input-group">
+        <label>Tipo de Tasa</label>
+        <div class="input-wrapper" style="position: relative;">
+          <select [(ngModel)]="isRatePerYear" (ngModelChange)="isRatePerYear.set($event); updateYears()">
+            <option [ngValue]="false">Tasa fija todos los años</option>
+            <option [ngValue]="true">Tasa diferente por año</option>
+          </select>
+          <div style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-muted);">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-group" *ngIf="!isRatePerYear()">
+        <label>Tasa de Interés Anual (%)</label>
+        <div class="input-wrapper">
+          <input type="number" [(ngModel)]="annualRate" (ngModelChange)="annualRate.set($event)" step="0.1" placeholder="0.0">
+          <span class="suffix">%</span>
+        </div>
+      </div>
+
+      <ng-container *ngIf="isRatePerYear()">
+        <div class="input-group" *ngFor="let rate of annualRates(); let i = index; trackBy: trackByIndex">
+          <label>Tasa de Interés Año {{ i + 1 }} (%)</label>
+          <div class="input-wrapper">
+            <input type="number" [ngModel]="rate" (ngModelChange)="updateAnnualRate(i, $event)" step="0.1" placeholder="0.0">
+            <span class="suffix">%</span>
+          </div>
+        </div>
+      </ng-container>
+
+      <div class="input-group">
+        <label>Plazo (Años)</label>
+        <div class="input-wrapper">
+          <input type="number" [(ngModel)]="years" (ngModelChange)="years.set($event); updateYears()" placeholder="0">
+          <span class="suffix">años</span>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label>Frecuencia de Capitalización</label>
+        <div class="input-wrapper" style="position: relative;">
+          <select [(ngModel)]="capitalizationFrequency" (ngModelChange)="capitalizationFrequency.set($event)">
+            <option value="mensual">Mensualmente (diluido)</option>
+            <option value="anual">Anualmente (consolidado)</option>
+          </select>
+          <div style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-muted);">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label>Tipo de Interés</label>
+        <div class="interest-selector">
+          <div class="interest-card" [class.active]="interestType() === 'compuesto'" (click)="interestType.set('compuesto')">
+            <div class="interest-icon">🚀</div>
+            <span>Compuesto</span>
+          </div>
+          <div class="interest-card" [class.active]="interestType() === 'simple'" (click)="interestType.set('simple')">
+            <div class="interest-icon">📈</div>
+            <span>Simple</span>
+          </div>
+        </div>
+
+        <div class="info-box">
+          <div class="info-header">
+            <span>💡 ¿En qué consiste?</span>
+          </div>
+          <div class="info-content">
+            <p>{{ interestDescriptions[interestType()] }}</p>
+            <p><strong>🎯 Recomendación:</strong> {{ interestRecommendations[interestType()] }}</p>
+            <div class="fact-badge">
+              🧠 Dato curioso: {{ interestFacts[interestType()] }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="summary-stats">
+        <div class="stat-item highlight">
+          <span class="stat-label">Saldo Final</span>
+          <span class="stat-value primary-text">{{ investmentResults().finalBalance | currency }}</span>
+        </div>
+        <div class="stat-item" *ngIf="injectedCapital() > 0">
+          <span class="stat-label">Capital Inyectado (Préstamo)</span>
+          <span class="stat-value secondary-text">{{ injectedCapital() | currency }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Total Invertido (Propio + Préstamo)</span>
+          <span class="stat-value secondary-text">{{ investmentResults().totalInvested | currency }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Intereses Ganados</span>
+          <span class="stat-value profit-text">{{ investmentResults().totalInterestEarned | currency }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Rendimiento Total</span>
+          <span class="stat-value">{{ (investmentResults().totalInterestEarned / investmentResults().totalInvested) * 100 | number:'1.2-2' }}%</span>
+        </div>
+      </div>
+
+      <div class="bank-reference mt-4" style="background: rgba(30, 41, 59, 0.5); padding: 16px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); margin-top: 24px;">
+        <h4 style="margin: 0 0 8px 0; color: #94a3b8; font-size: 0.875rem; display: flex; align-items: center; gap: 8px;">
+          🏦 Referencia Bancaria
+        </h4>
+        <p style="margin: 0; font-size: 0.875rem; color: #cbd5e1; line-height: 1.5;">
+          Una cuenta de ahorro convencional al <strong>3% anual (simple)</strong> te daría un saldo estimado de
+          <strong class="primary-text" style="color: #6366f1;">{{ investmentResults().bankReferenceBalance | currency }}</strong> en {{ years() }} años.
+        </p>
+      </div>
+    </div>
+
+    <!-- Right Panel: Growth Chart -->
+    <div class="chart-panel card-premium" *ngIf="!isEmbedded()">
+      <h3>Crecimiento del Patrimonio</h3>
+      <div class="chart-wrapper">
+        <div class="chart-container-absolute">
+          <canvas baseChart
+            [data]="lineChartData()"
+            [options]="lineChartOptions"
+            [type]="'line'">
+          </canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel: Distribution Chart -->
+    <div class="chart-panel card-premium full-width" *ngIf="!isEmbedded()">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h3>Distribución de Capital vs Interés</h3>
+      </div>
+      <div class="chart-wrapper" style="min-height: 250px;">
+        <div class="chart-container-absolute">
+          <canvas baseChart
+            [data]="doughnutChartData()"
+            [options]="doughnutChartOptions"
+            [type]="'doughnut'">
+          </canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comparativa Chart: Leverage vs Non-Leverage -->
+    <div class="chart-panel card-premium full-width" style="grid-column: 1 / -1;" *ngIf="!isEmbedded()">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h3>{{ leverage() === 1 ? 'Comparativa de Rendimiento: Inversión vs Banco (3%)' : 'Comparativa de Rendimiento: Apalancado vs Sin Apalancamiento' }}</h3>
+      </div>
+      <div class="chart-wrapper" style="min-height: 250px;">
+        <div class="chart-container-absolute">
+          <canvas baseChart
+            [data]="leverageChartData()"
+            [options]="lineChartOptions"
+            [type]="'line'">
+          </canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom: Growth Table -->
+  <div class="table-panel card-premium" *ngIf="!isEmbedded()">
+    <div class="table-header">
+      <h3>Desglose de Crecimiento a {{ years() }} años</h3>
+      <button class="btn-export" disabled>Exportar CSV</button>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Año</th>
+            <th>Mes</th>
+            <th>Saldo Inicial</th>
+            <th>Contribución</th>
+            <th>Interés</th>
+            <th>Interés Acum.</th>
+            <th>Saldo Final</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of investmentResults().investmentSchedule">
+            <td>{{ row.year }}</td>
+            <td>{{ row.month }}</td>
+            <td>{{ row.startingBalance | currency }}</td>
+            <td>{{ row.contribution | currency }}</td>
+            <td>{{ row.interestEarned | currency }}</td>
+            <td>{{ row.totalInterestEarned | currency }}</td>
+            <td>{{ row.endingBalance | currency }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,254 @@
+<div class="calculator-container animate-fade-in" [class.is-embedded]="isEmbedded">
+  <div class="calculator-header" *ngIf="!isEmbedded">
+    <h1>Calculadora Financiera</h1>
+    <p>Visualiza tu plan de amortización y gestiona tu deuda de forma inteligente.</p>
+
+    <div class="mode-toggle-container">
+      <button [class.active]="calculatorMode === 'loan'" (click)="setMode('loan')">Préstamo Personal</button>
+      <button [class.active]="calculatorMode === 'extra'" (click)="setMode('extra')">Extrafinanciamiento</button>
+    </div>
+  </div>
+
+  <div class="calculator-grid">
+    <!-- Left Panel: Inputs -->
+    <div class="input-panel card-premium">
+      <div class="input-group">
+        <label>Monto a Financiar</label>
+        <div class="input-wrapper">
+          <span class="currency">$</span>
+          <input type="number" [(ngModel)]="principal" (ngModelChange)="calculateLoan()" placeholder="0.00">
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label>{{ calculatorMode === 'loan' ? 'Tasa de Interés Anual (%)' : 'Tasa Flat Anual (%)' }}</label>
+        <div class="input-wrapper">
+          <input type="number" [(ngModel)]="annualRate" (ngModelChange)="calculateLoan()" step="0.1" placeholder="0.0">
+          <span class="suffix">%</span>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label class="flex-label" style="margin-bottom: 12px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span>Comisión por Desembolso</span>
+            <div class="mode-toggle-container" style="padding: 2px;">
+              <button [class.active]="commissionType === 'percentage'"
+                      (click)="commissionType = 'percentage'; calculateLoan()"
+                      style="padding: 4px 8px; font-size: 0.8rem;"
+                      [disabled]="!includeCommission">%</button>
+              <button [class.active]="commissionType === 'fixed'"
+                      (click)="commissionType = 'fixed'; calculateLoan()"
+                      style="padding: 4px 8px; font-size: 0.8rem;"
+                      [disabled]="!includeCommission">$</button>
+            </div>
+          </div>
+          <input type="checkbox" [(ngModel)]="includeCommission" (ngModelChange)="calculateLoan()">
+        </label>
+        <div class="input-wrapper" [class.disabled-input]="!includeCommission">
+          <span class="currency" *ngIf="commissionType === 'fixed'">$</span>
+          <input type="number" *ngIf="commissionType === 'percentage'" [(ngModel)]="commissionRate" (ngModelChange)="calculateLoan()" step="0.1" placeholder="0.0" [disabled]="!includeCommission">
+          <input type="number" *ngIf="commissionType === 'fixed'" [(ngModel)]="commissionFixedAmount" (ngModelChange)="calculateLoan()" step="1" placeholder="0.00" [disabled]="!includeCommission">
+          <span class="suffix" *ngIf="commissionType === 'percentage'">%</span>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label>Plazo (Años)</label>
+        <div class="input-wrapper">
+          <input type="number" [(ngModel)]="years" (ngModelChange)="calculateLoan()" placeholder="0">
+          <span class="suffix">años</span>
+        </div>
+        <small class="text-muted">{{ termMonths }} meses en total</small>
+      </div>
+
+      <div class="input-group">
+        <label class="flex-label">
+          <span>Cuota Seguro</span>
+          <input type="checkbox" [(ngModel)]="includeInsurance" (ngModelChange)="calculateLoan()">
+        </label>
+        <div class="input-wrapper" [class.disabled-input]="!includeInsurance">
+          <span class="currency">$</span>
+          <input type="number" [(ngModel)]="insuranceFee" (ngModelChange)="calculateLoan()" placeholder="0.00" [disabled]="!includeInsurance">
+        </div>
+      </div>
+
+      <div class="summary-stats">
+        <div class="stat-item">
+          <span class="stat-label">Pago Mensual</span>
+          <span class="stat-value primary-text">{{ monthlyPayment | currency }}</span>
+        </div>
+        <div *ngIf="calculatorMode === 'extra'" class="stat-item animate-fade-in">
+          <span class="stat-label">Comisión Inicial</span>
+          <span class="stat-value secondary-text">{{ totalCommission | currency }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Tiempo de Pago</span>
+          <span class="stat-value">{{ actualMonthsPaid }} cuotas</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Total Intereses</span>
+          <span class="stat-value secondary-text">{{ totalInterest | currency }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Total Seguro</span>
+          <span class="stat-value secondary-text">{{ totalInsurance | currency }}</span>
+        </div>
+        <div class="stat-item highlight" style="margin-bottom: 2px;" *ngIf="!isEmbedded">
+          <span class="stat-label">Ganancia de la Entidad</span>
+          <span class="stat-value profit-text">{{ totalBankProfit | currency }} ({{ bankProfitPercentage | number:'1.2-2' }}%)</span>
+        </div>
+        <div class="yearly-profits-list" style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px;" *ngIf="!isEmbedded">
+          <div *ngFor="let yp of yearlyBankProfits" class="stat-item" style="border-top: none; padding: 2px 0; min-height: auto;">
+            <span class="stat-label" style="font-size: 0.85rem; opacity: 0.8;">Año {{ yp.year }}</span>
+            <span class="stat-value profit-text" style="font-size: 0.9rem; opacity: 0.9;">{{ yp.profit | currency }}</span>
+          </div>
+        </div>
+        <div class="stat-item highlight" style="margin-top: 8px;" *ngIf="!isEmbedded">
+          <span class="stat-label">Total a Pagar Original</span>
+          <span class="stat-value text-muted" style="text-decoration: line-through; opacity: 0.6;">{{ baseTotalPayment | currency }}</span>
+        </div>
+        <div class="stat-item highlight" style="margin-top: 4px;">
+          <span class="stat-label">Total a Pagar Actual</span>
+          <span class="stat-value">{{ totalPayment | currency }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel: Chart 1 -->
+    <div class="chart-panel card-premium" *ngIf="!isEmbedded">
+      <h3>Comportamiento del Saldo e Intereses</h3>
+      <div class="chart-wrapper">
+        <div class="chart-container-absolute">
+          <canvas baseChart
+            [data]="lineChartData"
+            [options]="lineChartOptions"
+            [type]="'line'">
+          </canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Savings & Comparison Container -->
+    <div class="savings-comparison-container full-width animate-fade-in" *ngIf="hasExtraPayments && !isEmbedded">
+      <!-- Comparison Chart -->
+      <div class="chart-panel card-premium">
+        <h3>Comparativa de Ahorro</h3>
+        <div class="chart-wrapper">
+          <div class="chart-container-absolute">
+            <canvas baseChart
+              [data]="comparisonChartData"
+              [options]="comparisonChartOptions"
+              [type]="'bar'">
+            </canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Savings Highlight Card -->
+      <div class="savings-card card-premium">
+        <div class="savings-content">
+          <div class="savings-icon">🚀</div>
+          <div class="savings-details">
+            <h3>¡Estás ahorrando tiempo y dinero!</h3>
+            <p>Al realizar abonos a capital, has logrado reducir tu deuda significativamente.</p>
+            <div class="savings-grid">
+              <div class="savings-item">
+                <span class="label">Intereses Ahorrados</span>
+                <span class="value success-text">{{ savedInterest | currency }}</span>
+              </div>
+              <div class="savings-item">
+                <span class="label">Cuotas Ahorradas</span>
+                <span class="value success-text">{{ savedMonths }} meses</span>
+              </div>
+              <div class="savings-item">
+                <span class="label">📅 Fecha Final Adelantada</span>
+                <span class="value">{{ savedMonths }} meses antes</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel: Chart 2 -->
+    <div class="chart-panel card-premium full-width" *ngIf="!isEmbedded">
+      <h3>Distribución de Pago por Cuota</h3>
+      <div class="chart-wrapper">
+        <div class="chart-container-absolute">
+          <canvas baseChart
+            [data]="barChartData"
+            [options]="barChartOptions"
+            [type]="'bar'">
+          </canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom: Amortization Table -->
+  <div class="table-panel card-premium" *ngIf="!isEmbedded">
+    <div class="table-header">
+      <h3>Tabla de Amortización</h3>
+      <button class="btn-export" disabled>Exportar CSV</button>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Acciones</th>
+            <th>Mes</th>
+            <th>Cuota</th>
+            <th>Abono Extra</th>
+            <th>Principal</th>
+            <th>Interés</th>
+            <th>Seguro</th>
+            <th>Saldo Restante</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of amortizationSchedule">
+            <td>
+              <button class="btn-action-add" (click)="openPaymentModal(row.month)" [title]="'Agregar abono al mes ' + row.month">
+                <span class="icon">{{ getExtraPaymentForMonth(row.month) > 0 ? '✏️' : '💰' }}</span>
+              </button>
+            </td>
+            <td>{{ row.month }}</td>
+            <td>{{ row.payment | currency }}</td>
+            <td [class.has-extra]="getExtraPaymentForMonth(row.month) > 0">
+              {{ getExtraPaymentForMonth(row.month) > 0 ? (getExtraPaymentForMonth(row.month) | currency) : '-' }}
+            </td>
+            <td>{{ row.principal | currency }}</td>
+            <td>{{ row.interest | currency }}</td>
+            <td>{{ row.insurance | currency }}</td>
+            <td>{{ row.balance | currency }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for Extra Payment -->
+<div class="modal-overlay" *ngIf="showPaymentModal" (click)="closePaymentModal()">
+  <div class="modal-content card-premium animate-slide-up" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Abono Extra - Mes {{ selectedMonthForPayment }}</h3>
+      <button class="btn-close" (click)="closePaymentModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <p>¿Cuánto dinero extra deseas abonar al capital en este mes?</p>
+      <div class="input-group">
+        <label>Monto del Abono</label>
+        <div class="input-wrapper">
+          <span class="currency">$</span>
+          <input type="number" [(ngModel)]="newExtraPaymentAmount" placeholder="0.00" autoFocus>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closePaymentModal()">Cancelar</button>
+      <button class="btn-primary" (click)="addExtraPayment()">Guardar Abono</button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,221 @@
+<div class="compound-container">
+  <!-- Stepper Header -->
+  <div class="stepper-nav">
+    <button (click)="setStep('loan')" [class.active]="activeStep() === 'loan'">
+      <span class="step-num">1</span> Préstamo
+    </button>
+    <div class="step-connector"></div>
+    <button (click)="setStep('investment')" [class.active]="activeStep() === 'investment'">
+      <span class="step-num">2</span> Inversión
+    </button>
+    <div class="step-connector"></div>
+    <button (click)="setStep('results')" [class.active]="activeStep() === 'results'">
+      <span class="step-num">3</span> Conclusión
+    </button>
+  </div>
+
+  <div class="step-content">
+
+    <!-- STEP 1: LOAN CONFIG -->
+    <div [hidden]="activeStep() !== 'loan'" class="animate-in">
+      <div class="section-title">
+        <h2>Detalles del Financiamiento</h2>
+        <p>Configura las condiciones del préstamo que utilizarás para apalancarte.</p>
+      </div>
+
+      <app-loan-calculator
+        [isEmbedded]="true"
+        [externalExtraPayments]="withdrawals()"
+        (dataChanged)="onLoanData($event)">
+      </app-loan-calculator>
+
+      <div class="action-footer">
+        <button class="btn-primary" (click)="setStep('investment')">Siguiente: Inversión <span>→</span></button>
+      </div>
+    </div>
+
+    <!-- STEP 2: INVESTMENT CONFIG -->
+    <div [hidden]="activeStep() !== 'investment'" class="animate-in">
+      <div class="section-title">
+        <h2>Estrategia de Inversión</h2>
+        <p>¿Qué harás con el dinero? Define el capital propio extra y el rendimiento esperado.</p>
+      </div>
+
+      <app-investment-calculator
+        [isEmbedded]="true"
+        [injectedCapital]="loanData()?.principal || 0"
+        [withdrawals]="withdrawals()"
+        (dataChanged)="onInvestmentData($event)">
+      </app-investment-calculator>
+
+      <div class="action-footer">
+        <button class="btn-secondary" (click)="setStep('loan')"><span>←</span> Anterior</button>
+        <button class="btn-primary" (click)="setStep('results')">Ver Resultados <span>📈</span></button>
+      </div>
+    </div>
+
+    <!-- STEP 3: RESULTS -->
+    <div [hidden]="activeStep() !== 'results'" class="animate-in">
+      <div class="section-title">
+        <h2>Conclusión del Análisis</h2>
+        <p>Comparación entre el costo del dinero y el crecimiento del capital.</p>
+      </div>
+
+      <!-- KPI Summary -->
+      <div class="results-grid">
+        <div class="card res-card">
+          <div class="card-header-icon text-success">📈</div>
+          <span class="label">Interés Generado</span>
+          <span class="value text-success">{{ investmentResults()?.totalInterestEarned | currency }}</span>
+          <span class="sub-label">Rendimientos brutos de la inversión</span>
+        </div>
+
+        <div class="card res-card">
+          <div class="card-header-icon text-error">📉</div>
+          <span class="label">Costo del Crédito</span>
+          <span class="value text-error">{{ netResult().totalCosts | currency }}</span>
+          <span class="sub-label">Intereses + Comisiones + Seguros</span>
+        </div>
+
+        <div class="card res-card">
+          <div class="card-header-icon text-success">💰</div>
+          <span class="label">Valor Final Inversión</span>
+          <span class="value text-success">{{ investmentResults()?.finalBalance | currency }}</span>
+          <span class="sub-label">Capital + Intereses Ganados</span>
+        </div>
+      </div>
+
+      <!-- Main Result Card -->
+      <div class="net-profit-container">
+        <div class="card net-profit-card highlight-glow" [class.negative]="netResult().netProfit < 0">
+          <div class="net-profit-header">
+            <span class="label">Ganancia Real Neta</span>
+            <div class="trend-icon" [class.text-success]="netResult().netProfit > 0" [class.text-error]="netResult().netProfit <= 0">
+              {{ netResult().netProfit > 0 ? '📈' : '📉' }}
+            </div>
+          </div>
+          <span class="mega-value" [class.text-success]="netResult().netProfit > 0" [class.text-error]="netResult().netProfit <= 0">
+            {{ netResult().netProfit | currency }}
+          </span>
+          <span class="sub-label">Beneficio final después de liquidar todas las obligaciones</span>
+        </div>
+      </div>
+
+      <!-- Detail Cards -->
+      <div class="detail-split">
+        <div class="card chart-card">
+          <h3>Evolución: Deuda vs. Inversión</h3>
+          <div class="chart-container">
+            <canvas baseChart
+              [data]="lineChartData()"
+              [options]="lineChartOptions"
+              [type]="'line'">
+            </canvas>
+          </div>
+        </div>
+
+        <div class="card summary-card">
+          <h3>Resumen de la Operación</h3>
+          <div class="stat-row">
+            <span>Capital Inicial Invertido (Préstamo + Propio)</span>
+            <span class="bold">{{ (investmentResults()?.totalInvested) | currency }}</span>
+          </div>
+          <div class="stat-row">
+            <span>Total de Intereses Ganados</span>
+            <span class="bold text-success">{{ investmentResults()?.totalInterestEarned | currency }}</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-row">
+            <span>Cuota Mensual del Préstamo</span>
+            <span class="bold text-error">{{ loanResults()?.monthlyPayment | currency }}</span>
+          </div>
+          <div class="stat-row">
+            <span>Total Pagado al Banco</span>
+            <span class="bold text-error">{{ loanResults()?.totalPayment | currency }}</span>
+          </div>
+          <div class="stat-row" style="font-size: 0.85rem; padding-left: 0.5rem; opacity: 0.8;">
+            <span>• Cuotas del Préstamo Pagadas</span>
+            <span>{{ loanResults()?.monthsPaid }} meses</span>
+          </div>
+          <div class="stat-row" style="font-size: 0.85rem; padding-left: 0.5rem; opacity: 0.8;">
+            <span>• Pagado a Capital en Cuotas</span>
+            <span>{{ loanResults()?.totalRegularPrincipalPaid | currency }}</span>
+          </div>
+          <div class="stat-row" style="font-size: 0.85rem; padding-left: 0.5rem; opacity: 0.8;">
+            <span>• Pagado en Abonos a Capital</span>
+            <span [class.text-success]="(loanResults()?.totalExtraPaid || 0) > 0">{{ loanResults()?.totalExtraPaid | currency }}</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-row highlight">
+            <span>Punto de Equilibrio (Neto)</span>
+            <span class="bold" [class.text-success]="netResult().netProfit > 0" [class.text-error]="netResult().netProfit < 0">
+              {{ netResult().netProfit | currency }}
+            </span>
+          </div>
+
+          <div class="advice-box" *ngIf="netResult().netProfit > 0">
+            <span>✅</span>
+            Esta inversión parece rentable. Las ganancias superan los costos del préstamo por {{ netResult().netProfit | currency }}.
+          </div>
+          <div class="advice-box warning" *ngIf="netResult().netProfit <= 0">
+            <span>⚠️</span>
+            ¡Cuidado! El costo del préstamo es superior o igual a los rendimientos esperados. No se recomienda esta estrategia con los parámetros actuales.
+          </div>
+        </div>
+      </div>
+
+      <!-- Strategy: Withdrawals to Debt -->
+      <div class="card extra-payments-section">
+        <div class="extra-payments-header">
+          <div>
+            <h3 style="margin:0; font-size: 1.25rem;">Estrategia de Retiros hacia la Deuda</h3>
+            <p style="margin:0.25rem 0 0; font-size: 0.875rem; color: #94a3b8;">Programa retiros de tu inversión para abonar directamente al capital del préstamo.</p>
+          </div>
+          <button class="btn-primary" (click)="addWithdrawal()">Agregar Pago</button>
+        </div>
+
+        <div class="extra-payment-row" style="margin-bottom: 1.5rem; background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.1); grid-template-columns: 1fr 1fr auto;">
+          <div class="input-group" style="margin-bottom: 0;">
+            <label>Mes</label>
+            <input type="number" [value]="newWithdrawalMonth()" (input)="newWithdrawalMonth.set($any($event.target).valueAsNumber)">
+          </div>
+          <div class="input-group" style="margin-bottom: 0;">
+            <label>Monto a Retirar/Abonar</label>
+            <div class="input-with-symbol">
+              <span>$</span>
+              <input type="number" [value]="newWithdrawalAmount()" (input)="newWithdrawalAmount.set($any($event.target).valueAsNumber)">
+            </div>
+          </div>
+          <div style="display: flex; align-items: flex-end; padding-bottom: 0.5rem; color: #94a3b8; font-size: 0.8rem;">
+            Se restará de la inversión y se abonará a la deuda.
+          </div>
+        </div>
+
+        <div class="extra-payments-list">
+          <div *ngFor="let w of withdrawals(); trackBy: trackByIndex" class="extra-payment-row" style="grid-template-columns: 1fr 2fr auto;">
+            <div class="stat-item">
+              <span class="label" style="display:block; font-size: 0.7rem; color: #64748b;">Mes</span>
+              <span class="value" style="font-size: 1rem;">{{ w.month }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="label" style="display:block; font-size: 0.7rem; color: #64748b;">Monto</span>
+              <span class="value text-success" style="font-size: 1rem;">{{ w.amount | currency }}</span>
+            </div>
+            <button class="btn-icon-danger" (click)="removeWithdrawal(w.id)">
+              🗑️
+            </button>
+          </div>
+          <div *ngIf="withdrawals().length === 0" class="text-center" style="padding: 2rem; color: #64748b; border: 1px dashed rgba(255,255,255,0.05); border-radius: 0.75rem;">
+            No hay retiros programados aún.
+          </div>
+        </div>
+      </div>
+
+      <div class="action-footer">
+        <button class="btn-secondary" (click)="setStep('investment')"><span>✏️</span> Ajustar Inversión</button>
+        <button class="btn-secondary" (click)="setStep('loan')"><span>✏️</span> Ajustar Préstamo</button>
+      </div>
+    </div>
+
+  </div>
+</div>
