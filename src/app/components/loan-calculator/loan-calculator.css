@@ -44,6 +44,7 @@
 }
 
 .mode-toggle-container {
+  margin-bottom: 24px;
   display: inline-flex;
   background: var(--glass-bg);
   padding: 4px;

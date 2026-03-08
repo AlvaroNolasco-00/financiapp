@@ -43,7 +43,7 @@
 
       <app-investment-calculator
         [isEmbedded]="true"
-        [injectedCapital]="loanData()?.principal || 0"
+        [injectedCapital]="(loanData()?.principal || 0) - (loanData()?.totalCommission || 0)"
         [withdrawals]="withdrawals()"
         (dataChanged)="onInvestmentData($event)">
       </app-investment-calculator>

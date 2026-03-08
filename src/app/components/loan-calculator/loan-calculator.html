@@ -2,11 +2,11 @@
   <div class="calculator-header" *ngIf="!isEmbedded">
     <h1>Calculadora Financiera</h1>
     <p>Visualiza tu plan de amortización y gestiona tu deuda de forma inteligente.</p>
+  </div>
 
-    <div class="mode-toggle-container">
-      <button [class.active]="calculatorMode === 'loan'" (click)="setMode('loan')">Préstamo Personal</button>
-      <button [class.active]="calculatorMode === 'extra'" (click)="setMode('extra')">Extrafinanciamiento</button>
-    </div>
+  <div class="mode-toggle-container">
+    <button [class.active]="calculatorMode === 'loan'" (click)="setMode('loan')">Préstamo Personal</button>
+    <button [class.active]="calculatorMode === 'extra'" (click)="setMode('extra')">Extrafinanciamiento</button>
   </div>
 
   <div class="calculator-grid">

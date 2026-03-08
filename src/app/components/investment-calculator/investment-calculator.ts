@@ -53,6 +53,7 @@ export class InvestmentCalculatorComponent implements OnInit {
         this.dataChanged.emit({
           initialInvestment: this.initialInvestment(),
           injectedCapital: this.injectedCapital(),
+          leverage: this.leverage(),
           monthlyContribution: this.monthlyContribution(),
           years: this.years(),
           annualRate: this.annualRate(),

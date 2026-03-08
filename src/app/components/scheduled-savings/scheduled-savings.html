@@ -1,0 +1,91 @@
+<div class="calculator-container animate-fade-in">
+  <div class="calculator-header">
+    <h1>Ahorro Programado</h1>
+    <p>Calcula y visualiza tu crecimiento financiero usando el poder del ahorro constante.</p>
+  </div>
+
+  <div class="calculator-grid">
+    <!-- Left Panel: Inputs -->
+    <div class="input-panel card-premium">
+
+      <div class="input-group">
+        <label>Monto de Abono</label>
+        <div class="input-wrapper">
+          <span class="currency">$</span>
+          <input type="number" [(ngModel)]="depositAmount" (ngModelChange)="calculateSavings()" placeholder="0.00">
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label>¿Cada cuánto tiempo abonarás?</label>
+        <div class="interval-inputs">
+          <div class="input-wrapper" style="flex: 1;">
+            <input type="number" [(ngModel)]="intervalValue" (ngModelChange)="calculateSavings()" placeholder="1">
+          </div>
+          <select [(ngModel)]="intervalUnit" (ngModelChange)="calculateSavings()">
+            <option value="days">Días</option>
+            <option value="months">Meses</option>
+            <option value="years">Años</option>
+          </select>
+        </div>
+        <small class="text-muted">Ej. Cada 15 días, cada 1 mes.</small>
+      </div>
+
+      <div class="input-group">
+        <label>¿Por cuánto tiempo?</label>
+        <div class="interval-inputs">
+          <div class="input-wrapper" style="flex: 1;">
+            <input type="number" [(ngModel)]="durationValue" (ngModelChange)="calculateSavings()" placeholder="1">
+          </div>
+          <select [(ngModel)]="durationUnit" (ngModelChange)="calculateSavings()">
+            <option value="days">Días</option>
+            <option value="months">Meses</option>
+            <option value="years">Años</option>
+          </select>
+        </div>
+        <small class="text-muted">Ej. Por 10 años.</small>
+      </div>
+
+      <div class="summary-stats">
+        <div class="stat-item">
+          <span class="stat-label">Total de Abonos</span>
+          <span class="stat-value secondary-text">{{ totalDeposits }} veces</span>
+        </div>
+
+        <div class="stat-item highlight final-amount">
+          <span class="stat-label">Monto Final Ahorrado</span>
+          <span class="stat-value profit-text">{{ totalSaved | currency }}</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Panel: Chart -->
+    <div class="chart-panel card-premium">
+      <h3>Crecimiento de tu Ahorro</h3>
+      <div class="chart-wrapper">
+        <div class="chart-container-absolute">
+          <canvas baseChart
+            [data]="lineChartData"
+            [options]="lineChartOptions"
+            [type]="'line'">
+          </canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Facts Section -->
+  <div class="facts-section card-premium mt-4 animate-slide-up">
+    <h3>💡 ¿Sabías qué?</h3>
+    <div class="facts-grid">
+      <div class="fact-card" *ngFor="let fact of randomFacts">
+        <div class="fact-content">
+          <span class="fact-icon">✨</span>
+          <p>{{ fact }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
