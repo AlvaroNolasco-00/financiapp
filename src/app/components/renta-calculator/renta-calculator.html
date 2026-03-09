@@ -1,0 +1,249 @@
+<div class="calculator-container animate-fade-in">
+  <div class="calculator-header">
+    <h1>Calculadora de Impuesto a la Renta (ISR)</h1>
+    <p>Cálculos precisos según la normativa de El Salvador para el ejercicio 2026.</p>
+  </div>
+
+  <!-- Contract Type Selector -->
+  <div class="contract-selector">
+    <div class="contract-option" [class.selected]="contractType() === 'employee'" (click)="setContractType('employee')">
+      <div class="option-icon">👔</div>
+      <div class="option-content">
+        <h3>Empleado</h3>
+        <p>Trabajador asalariado con ISSS y AFP.</p>
+      </div>
+    </div>
+    <div class="contract-option" [class.selected]="contractType() === 'professional'" (click)="setContractType('professional')">
+      <div class="option-icon">💼</div>
+      <div class="option-content">
+        <h3>Servicios Profesionales</h3>
+        <p>Honorarios, consultoría o freelance.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="calculator-grid">
+    <!-- Left Panel: Inputs & Main Result -->
+    <div class="input-panel card-premium">
+      <div class="mode-toggle">
+        <button [class.active]="isMonthly()" (click)="setMode(true)">Mensual</button>
+        <button [class.active]="!isMonthly()" (click)="setMode(false)">Anual</button>
+      </div>
+
+      <div class="input-group">
+        <label>{{ isMonthly() ? 'Ingreso Mensual Bruto' : 'Ingreso Anual Bruto' }}</label>
+        <div class="input-wrapper">
+          <span class="currency">$</span>
+          <input type="number" [ngModel]="income()" (ngModelChange)="income.set($event)" placeholder="0.00">
+        </div>
+      </div>
+
+      <!-- Professional Specific Inputs (Annual) -->
+      @if (!isMonthly() && contractType() === 'professional') {
+        <div class="input-group">
+          <label>Gastos Operativos Deducibles</label>
+          <div class="input-wrapper">
+            <span class="currency">$</span>
+            <input type="number" [ngModel]="operatingExpenses()" (ngModelChange)="operatingExpenses.set($event)" placeholder="0.00">
+          </div>
+          <p class="input-help">Gastos necesarios para generar tu renta (alquiler, insumos, etc).</p>
+        </div>
+      }
+
+      <!-- Annual Deductions (for both, but only in annual mode) -->
+      @if (!isMonthly()) {
+        <div class="deductions-container">
+          <div class="divider">Deducciones Personales</div>
+
+          <div class="input-group">
+            <div class="label-with-cap">
+              <label>Gastos Médicos</label>
+              <span class="cap-info">Máx. $800</span>
+            </div>
+            <div class="input-wrapper">
+              <span class="currency">$</span>
+              <input type="number" [ngModel]="medicalExpenses()" (ngModelChange)="medicalExpenses.set($event)" placeholder="0.00">
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="label-with-cap">
+              <label>Gastos de Educación</label>
+              <span class="cap-info">Máx. $800</span>
+            </div>
+            <div class="input-wrapper">
+              <span class="currency">$</span>
+              <input type="number" [ngModel]="educationExpenses()" (ngModelChange)="educationExpenses.set($event)" placeholder="0.00">
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="label-with-cap">
+              <label>Donaciones</label>
+              <span class="cap-info">Máx. 10% Renta Neta</span>
+            </div>
+            <div class="input-wrapper">
+              <span class="currency">$</span>
+              <input type="number" [ngModel]="donations()" (ngModelChange)="donations.set($event)" placeholder="0.00">
+            </div>
+          </div>
+        </div>
+      }
+
+      <div class="summary-stats">
+        @let b = breakdown();
+
+        <!-- Professional Monthly Summary -->
+        @if (isMonthly() && contractType() === 'professional') {
+          <div class="stat-item">
+            <span class="stat-label">Retención ISR (10% fijo)</span>
+            <span class="stat-value secondary-text">{{ b.netTax | currency }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">IVA (13%) Informativo</span>
+            <span class="stat-value">{{ b.ivaAmount | currency }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Pago a Cuenta (1.5%)</span>
+            <span class="stat-value">{{ b.pagoCuenta | currency }}</span>
+          </div>
+        } @else {
+          <div class="stat-item highlight">
+            <span class="stat-label">Impuesto {{ isMonthly() ? 'a Retener' : 'a Pagar Anual' }}</span>
+            <div class="value-with-percent">
+              <span class="stat-value secondary-text">{{ b.netTax | currency }}</span>
+              <span class="percent-badge warning">{{ b.effectiveRate | number:'1.1-1' }}%</span>
+            </div>
+          </div>
+        }
+
+        @if (!isMonthly() && contractType() === 'professional') {
+          <div class="stat-item">
+            <span class="stat-label">Total Retenciones (10% x 12)</span>
+            <span class="stat-value secondary-text">{{ b.annualWithholdingAccumulated | currency }}</span>
+          </div>
+          <div class="stat-item difference-row">
+            <span class="stat-label">Balance Final Declaración</span>
+            <span class="stat-value" [class.value-renta]="(b.taxDifference || 0) > 0" [class.value-isss]="(b.taxDifference || 0) <= 0">
+              {{ b.taxDifference | currency }}
+              {{ (b.taxDifference || 0) > 0 ? '(Pagar)' : '(A favor)' }}
+            </span>
+          </div>
+        }
+
+        <div class="stat-item total-row">
+          <span class="stat-label">Ingreso {{ isMonthly() ? 'Neto Mensual' : 'Neto Anual' }}</span>
+          <span class="stat-value primary-text">{{ b.netIncome | currency }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel: Distribution Chart -->
+    <div class="chart-panel card-premium">
+      <h3>Distribución del Ingreso</h3>
+      <div class="chart-wrapper">
+        <div class="chart-container-absolute">
+          <canvas baseChart
+            [data]="doughnutChartData()"
+            [options]="doughnutChartOptions"
+            [type]="'doughnut'">
+          </canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Full Width Panel: Renta Tables (Only for Employee Monthly or Annual) -->
+    @if (!isMonthly() || contractType() === 'employee') {
+      <div class="table-panel card-premium full-width">
+        <div class="table-header">
+          <h3>{{ isMonthly() ? 'Tramos de Retención Mensual' : 'Tramos de Recálculo Anual' }}</h3>
+          <p class="table-desc">
+            Tramo aplicado sobre una base gravable de {{ breakdown().taxableBase | currency }}.
+          </p>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Tramo</th>
+                <th>Desde</th>
+                <th>Hasta</th>
+                <th>Porcentaje</th>
+                <th>Cuota Fija</th>
+              </tr>
+            </thead>
+            <tbody>
+              @let brackets = isMonthly() ? getMonthlyBrackets() : getAnnualBrackets();
+              @for (bracket of brackets; track $index) {
+                <tr [class.active-tramo]="getTramoActive($index + 1)">
+                  <td>{{ bracket.label }}</td>
+                  <td>{{ bracket.from | currency }}</td>
+                  <td>{{ bracket.to ? (bracket.to | currency) : 'En adelante' }}</td>
+                  <td>{{ (bracket.rate * 100) }}% sobre exceso de {{ bracket.excessOver | currency }}</td>
+                  <td>{{ bracket.fixedFee | currency }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+
+    <!-- Info Panel: Legal Context -->
+    <div class="info-panel full-width">
+      <div class="info-header">
+        <h3>Información Importante (Ejercicio 2026)</h3>
+        <p>Datos clave para tu declaración de renta ante el Ministerio de Hacienda.</p>
+      </div>
+
+      <div class="info-grid">
+        @if (contractType() === 'employee') {
+          <div class="info-card">
+            <div class="info-icon">👔</div>
+            <h4>Ley del Seguro Social</h4>
+            <p>El patrono retiene el 3% para ISSS (tope $1,000) y 7.25% para AFP antes de calcular la renta.</p>
+          </div>
+          <div class="info-card">
+            <div class="info-icon">⚖️</div>
+            <h4>Base Exenta</h4>
+            <p>Los primeros $550 de tu salario mensual están libres de impuesto sobre la renta.</p>
+          </div>
+        } @else {
+          <div class="info-card">
+            <div class="info-icon">💼</div>
+            <h4>Artículo 156 C.T.</h4>
+            <p>Toda persona jurídica que pague honorarios a una persona natural debe retener el 10% fijo en concepto de ISR.</p>
+          </div>
+          <div class="info-card">
+            <div class="info-icon">📄</div>
+            <h4>IVA e Informe</h4>
+            <p>Si eres emisor de factura, recuerda sumar el 13% de IVA y declarar mensualmente aunque no haya movimiento.</p>
+          </div>
+          <div class="info-card">
+            <div class="info-icon">💹</div>
+            <h4>Pago a Cuenta</h4>
+            <p>Los profesionales independientes deben autoliquidar el 1.5% mensual sobre sus ingresos brutos.</p>
+          </div>
+        }
+
+        <div class="info-card">
+          <div class="info-icon">🏥</div>
+          <h4>Deducciones</h4>
+          <p>Gastos médicos y de educación son deducibles hasta $800 cada uno al final del año si tus ingresos > $9,100.</p>
+        </div>
+
+        <div class="info-card">
+          <div class="info-icon">🏢</div>
+          <h4>Gastos Operativos</h4>
+          <p>Solo para servicios profesionales: puedes deducir gastos como internet, local y materiales vinculados a tu labor.</p>
+        </div>
+
+        <div class="info-card">
+          <div class="info-icon">💾</div>
+          <h4>Comprobantes</h4>
+          <p>Es obligatorio conservar los comprobantes de gastos deducibles por un período de seis años.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
