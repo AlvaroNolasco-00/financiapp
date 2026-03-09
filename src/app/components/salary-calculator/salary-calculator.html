@@ -1,0 +1,177 @@
+<div class="calculator-container animate-fade-in">
+  <div class="calculator-header">
+    <h1>Calculadora de Salario Neto</h1>
+    <p>Calcula tus descuentos de ley (ISSS, AFP, Renta) actualizados a mayo 2025.</p>
+  </div>
+
+  <div class="calculator-grid">
+    <!-- Left Panel: Inputs & Main Result -->
+    <div class="input-panel card-premium">
+      <div class="input-group">
+        <label>Salario Mensual Bruto</label>
+        <div class="input-wrapper">
+          <span class="currency">$</span>
+          <input type="number" [(ngModel)]="grossSalary" (ngModelChange)="calculateSalary()" placeholder="0.00">
+        </div>
+      </div>
+
+      <div class="summary-stats" *ngIf="breakdown">
+        <div class="stat-item highlight">
+          <span class="stat-label">Salario Neto Mensual</span>
+          <div class="value-with-percent">
+            <span class="stat-value primary-text">{{ breakdown.netSalary | currency }}</span>
+            <span class="percent-badge">{{ breakdown.netSalaryPercentage | number:'1.1-1' }}%</span>
+          </div>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Total en Descuentos</span>
+          <div class="value-with-percent">
+            <span class="stat-value secondary-text">{{ breakdown.totalDeductions | currency }}</span>
+            <span class="percent-badge warning">{{ breakdown.deductionsPercentage | number:'1.1-1' }}%</span>
+          </div>
+        </div>
+
+        <div class="divider">Desglose de Descuentos</div>
+
+        <div class="stat-item">
+          <span class="stat-label">ISSS (3%)</span>
+          <span class="stat-value value-isss">{{ breakdown.isss | currency }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">AFP (7.25%)</span>
+          <span class="stat-value value-afp">{{ breakdown.afp | currency }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Impuesto a la Renta</span>
+          <span class="stat-value value-renta">{{ breakdown.renta | currency }}</span>
+        </div>
+
+        <div class="divider">Información Patronal</div>
+        <div class="stat-item">
+          <span class="stat-label">ISSS Patronal (7.5%)</span>
+          <span class="stat-value">{{ breakdown.patronalIsss | currency }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">AFP Patronal (8.75%)</span>
+          <span class="stat-value">{{ breakdown.patronalAfp | currency }}</span>
+        </div>
+
+        <div class="stat-item employer-total-row">
+          <span class="stat-label">Coste Total Empleado (Mensual)</span>
+          <span class="stat-value">{{ breakdown.totalEmployerCost | currency }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel: Distribution Chart -->
+    <div class="chart-panel card-premium">
+      <h3>Distribución del Salario</h3>
+      <div class="chart-wrapper">
+        <div class="chart-container-absolute">
+          <canvas baseChart
+            [data]="doughnutChartData"
+            [options]="doughnutChartOptions"
+            [type]="'doughnut'">
+          </canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Full Width Panel: Renta Tables -->
+    <div class="table-panel card-premium full-width">
+      <div class="table-header">
+        <h3>Tramos de Retención Mensual (ISR)</h3>
+        <p class="table-desc">La renta se calcula sobre el salario gravable ({{ breakdown?.taxableBase | currency }}) tras descontar ISSS y AFP.</p>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Tramo</th>
+              <th>Desde</th>
+              <th>Hasta</th>
+              <th>Aplicación</th>
+              <th>Cuota Fija</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr [class.active-tramo]="getTramoActive(1)">
+              <td>I</td>
+              <td>$0.01</td>
+              <td>$550.00</td>
+              <td>Exento</td>
+              <td>$0.00</td>
+            </tr>
+            <tr [class.active-tramo]="getTramoActive(2)">
+              <td>II</td>
+              <td>$550.01</td>
+              <td>$895.24</td>
+              <td>10% sobre exceso de $550.00</td>
+              <td>$17.67</td>
+            </tr>
+            <tr [class.active-tramo]="getTramoActive(3)">
+              <td>III</td>
+              <td>$895.25</td>
+              <td>$2,038.10</td>
+              <td>20% sobre exceso de $895.24</td>
+              <td>$60.00</td>
+            </tr>
+            <tr [class.active-tramo]="getTramoActive(4)">
+              <td>IV</td>
+              <td>$2,038.11</td>
+              <td>en adelante</td>
+              <td>30% sobre exceso de $2,038.10</td>
+              <td>$288.57</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Info Panel: Labor Law Facts -->
+    <div class="info-panel full-width">
+      <div class="info-header">
+        <h3>Datos de Interés y Beneficios de Ley (El Salvador 2026)</h3>
+        <p>Consideraciones clave para empleadores y empleados al evaluar una oferta salarial.</p>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="info-icon">🎁</div>
+          <h4>Aguinaldo</h4>
+          <p>Pago anual obligatorio entre el 12 y 20 de diciembre. Libre de ISR hasta ciertos límites (ej. $1,500). Varía de 15 a 21 días según antigüedad.</p>
+        </div>
+
+        <div class="info-card">
+          <div class="info-icon">🌴</div>
+          <h4>Vacaciones</h4>
+          <p>15 días de descanso remunerado anual más un recargo del 30% sobre el salario de esos días (prima vacacional).</p>
+        </div>
+
+        <div class="info-card">
+          <div class="info-icon">🛡️</div>
+          <h4>Indemnización</h4>
+          <p>Derecho a 30 días de salario por año laborado en caso de despido injustificado (tope de 4 salarios mínimos).</p>
+        </div>
+
+        <div class="info-card">
+          <div class="info-icon">🎓</div>
+          <h4>INSAFORP</h4>
+          <p>Aporte patronal del 1% (en empresas de 10+ empleados) destinado a la capacitación técnica y profesional del trabajador.</p>
+        </div>
+
+        <div class="info-card">
+          <div class="info-icon">📈</div>
+          <h4>Techos 2026</h4>
+          <p>El techo de cotización para ISSS se mantiene en $1,000.00 y para AFP fue actualizado a $7,045.06.</p>
+        </div>
+
+        <div class="info-card">
+          <div class="info-icon">📑</div>
+          <h4>Salario Gravable</h4>
+          <p>La Renta (ISR) no se calcula sobre el total, sino después de restar ISSS y AFP del empleado.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

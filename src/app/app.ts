@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { AuthService } from './services/auth.service';
 
 @Component({
   selector: 'app-root',
@@ -11,4 +12,17 @@ import { CommonModule } from '@angular/common';
 })
 export class AppComponent {
   title = 'finance';
+  authService = inject(AuthService);
+  userProfile$ = this.authService.userProfile$;
+
+  getInitials(name: string): string {
+    if (!name) return 'UN';
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  }
 }
+

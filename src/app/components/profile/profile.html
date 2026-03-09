@@ -1,0 +1,88 @@
+<div class="profile-container animate-fade-in">
+  <div class="profile-header">
+    <h1>Mi Perfil</h1>
+    <p>Gestiona tu información personal y preferencias</p>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <span class="spinner"></span>
+      <p>Cargando perfil...</p>
+    </div>
+  } @else if (profile) {
+    <div class="profile-content">
+      <div class="profile-sidebar">
+        <div class="avatar-large">
+          @if (profile.photoURL) {
+            <img [src]="profile.photoURL" [alt]="profile.fullName">
+          } @else {
+            <div class="initials">{{ getInitials(profile.fullName) }}</div>
+          }
+        </div>
+        <div class="user-meta">
+          <h3>{{ profile.fullName }}</h3>
+          <p>{{ profile.email }}</p>
+          <div class="badge">Usuario Pro</div>
+        </div>
+        <button class="btn-outline btn-logout" (click)="logout()">
+          Cerrar Sesión
+        </button>
+      </div>
+
+      <div class="profile-main">
+        <form [formGroup]="profileForm" (ngSubmit)="onSave()" class="profile-form">
+          <div class="form-section">
+            <h3>Información Personal</h3>
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="fullName">Nombre Completo</label>
+                <input type="text" id="fullName" formControlName="fullName" placeholder="Tu nombre">
+              </div>
+
+              <div class="form-group">
+                <label for="email">Email (No editable)</label>
+                <input type="email" id="email" [value]="profile.email" disabled>
+              </div>
+
+              <div class="form-group">
+                <label for="phone">Teléfono</label>
+                <input type="tel" id="phone" formControlName="phone" placeholder="+502 1234 5678">
+              </div>
+
+              <div class="form-group">
+                <label for="birthDate">Fecha de Nacimiento</label>
+                <input type="date" id="birthDate" formControlName="birthDate">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>Detalles de la Cuenta</h3>
+            <div class="info-row">
+              <span class="label">Fecha de registro:</span>
+              <span class="value">{{ formatDate(profile.createdAt) }}</span>
+            </div>
+          </div>
+
+          @if (successMsg()) {
+            <div class="alert success">{{ successMsg() }}</div>
+          }
+          @if (errorMsg()) {
+            <div class="alert error">{{ errorMsg() }}</div>
+          }
+
+          <div class="form-actions">
+            <button type="submit" class="btn-primary" [disabled]="profileForm.invalid || isSaving()">
+              @if (isSaving()) {
+                <span class="spinner"></span>
+              } @else {
+                Guardar Cambios
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</div>
