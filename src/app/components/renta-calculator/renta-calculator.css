@@ -12,10 +12,10 @@
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 20px;
-  padding: 20px;
+  padding: 24px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
   cursor: pointer;
   transition: var(--transition);
 }
@@ -32,26 +32,27 @@
 }
 
 .option-icon {
-  font-size: 2rem;
+  font-size: 2.5rem;
   background: rgba(255, 255, 255, 0.05);
-  width: 60px;
-  height: 60px;
+  width: 70px;
+  height: 70px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 16px;
+  border-radius: 18px;
+  flex-shrink: 0;
 }
 
 .option-content h3 {
-  font-size: 1.1rem;
-  margin-bottom: 4px;
+  font-size: 1.2rem;
+  margin-bottom: 6px;
   color: #f8fafc;
 }
 
 .option-content p {
   font-size: 0.85rem;
   color: var(--text-muted);
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 /* Mode Toggle Styles - Unique to this component */
@@ -68,7 +69,7 @@
   flex: 1;
   background: transparent;
   border: none;
-  padding: 10px;
+  padding: 12px;
   border-radius: 8px;
   color: var(--text-muted);
   font-weight: 600;
@@ -89,8 +90,6 @@
   margin-bottom: 8px;
 }
 
-.label-with-cap label { margin-bottom: 0; }
-
 .cap-info {
   font-size: 0.75rem;
   color: var(--text-muted);
@@ -102,21 +101,27 @@
 .input-help {
   font-size: 0.75rem;
   color: var(--text-muted);
-  margin-top: 6px;
+  margin-top: 8px;
   font-style: italic;
 }
 
 .difference-row {
   background: rgba(255, 255, 255, 0.03);
-  padding: 12px;
-  border-radius: 12px;
+  padding: 16px;
+  border-radius: 16px;
   margin: 16px 0;
+  border: 1px dashed var(--border);
 }
 
 .total-row {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px dashed var(--border);
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 2px solid var(--border);
+}
+
+.total-row .stat-label {
+  font-size: 1.1rem;
+  color: #fff;
 }
 
 @media (max-width: 968px) {

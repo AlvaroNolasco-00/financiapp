@@ -43,7 +43,7 @@
 
       <app-investment-calculator
         [isEmbedded]="true"
-        [injectedCapital]="(loanData()?.principal || 0) - (loanData()?.totalCommission || 0)"
+        [injectedCapital]="injectedCapitalForInvestment()"
         [withdrawals]="withdrawals()"
         (dataChanged)="onInvestmentData($event)">
       </app-investment-calculator>
@@ -105,12 +105,15 @@
       <div class="detail-split">
         <div class="card chart-card">
           <h3>Evolución: Deuda vs. Inversión</h3>
-          <div class="chart-container">
-            <canvas baseChart
-              [data]="lineChartData()"
-              [options]="lineChartOptions"
-              [type]="'line'">
-            </canvas>
+          <div class="chart-wrapper" style="min-height: 350px;">
+            <div class="chart-container-absolute">
+              <canvas baseChart
+                [data]="lineChartData()"
+                [options]="lineChartOptions"
+                [type]="'line'"
+                [plugins]="chartPlugins">
+              </canvas>
+            </div>
           </div>
         </div>
 
@@ -165,7 +168,7 @@
       </div>
 
       <!-- Strategy: Withdrawals to Debt -->
-      <div class="card extra-payments-section">
+      <div class="card extra-payments-section" #withdrawalsSection>
         <div class="extra-payments-header">
           <div>
             <h3 style="margin:0; font-size: 1.25rem;">Estrategia de Retiros hacia la Deuda</h3>
@@ -174,20 +177,26 @@
           <button class="btn-primary" (click)="addWithdrawal()">Agregar Pago</button>
         </div>
 
-        <div class="extra-payment-row" style="margin-bottom: 1.5rem; background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.1); grid-template-columns: 1fr 1fr auto;">
+        <div class="extra-payment-row strategy-input-row" style="margin-bottom: 1.5rem; background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.1); grid-template-columns: 1fr 1.5fr 1.5fr;">
           <div class="input-group" style="margin-bottom: 0;">
-            <label>Mes</label>
-            <input type="number" [value]="newWithdrawalMonth()" (input)="newWithdrawalMonth.set($any($event.target).valueAsNumber)">
+            <label>Mes para retirar</label>
+            <div class="input-wrapper">
+              <input type="number" 
+                [value]="newWithdrawalMonth()" 
+                (input)="newWithdrawalMonth.set($any($event.target).valueAsNumber)" 
+                placeholder="12"
+                [class.pulse-highlight]="monthHighlighted()">
+            </div>
           </div>
           <div class="input-group" style="margin-bottom: 0;">
             <label>Monto a Retirar/Abonar</label>
-            <div class="input-with-symbol">
-              <span>$</span>
-              <input type="number" [value]="newWithdrawalAmount()" (input)="newWithdrawalAmount.set($any($event.target).valueAsNumber)">
+            <div class="input-wrapper">
+              <span class="currency">$</span>
+              <input type="number" [value]="newWithdrawalAmount()" (input)="newWithdrawalAmount.set($any($event.target).valueAsNumber)" style="padding-left: 28px;">
             </div>
           </div>
-          <div style="display: flex; align-items: flex-end; padding-bottom: 0.5rem; color: #94a3b8; font-size: 0.8rem;">
-            Se restará de la inversión y se abonará a la deuda.
+          <div style="display: flex; align-items: flex-end; padding-bottom: 0.5rem; color: #94a3b8; font-size: 0.8rem; line-height: 1.4;">
+            ✨ Este monto se restará de la inversión y se abonará directamente al capital de la deuda.
           </div>
         </div>
 

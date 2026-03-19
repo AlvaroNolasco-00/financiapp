@@ -21,30 +21,24 @@
       </div>
 
       <div class="input-group">
-        <label>{{ calculatorMode === 'loan' ? 'Tasa de Interés Anual (%)' : 'Tasa Flat Anual (%)' }}</label>
+        <label>{{ calculatorMode === 'loan' ? 'Tasa de Interés Anual (%)' : 'Tasa de Interés Anual (%)' }}</label>
         <div class="input-wrapper">
           <input type="number" [(ngModel)]="annualRate" (ngModelChange)="calculateLoan()" step="0.1" placeholder="0.0">
           <span class="suffix">%</span>
         </div>
       </div>
 
-      <div class="input-group">
-        <label class="flex-label" style="margin-bottom: 12px;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span>Comisión por Desembolso</span>
-            <div class="mode-toggle-container" style="padding: 2px;">
-              <button [class.active]="commissionType === 'percentage'"
-                      (click)="commissionType = 'percentage'; calculateLoan()"
-                      style="padding: 4px 8px; font-size: 0.8rem;"
-                      [disabled]="!includeCommission">%</button>
-              <button [class.active]="commissionType === 'fixed'"
-                      (click)="commissionType = 'fixed'; calculateLoan()"
-                      style="padding: 4px 8px; font-size: 0.8rem;"
-                      [disabled]="!includeCommission">$</button>
-            </div>
-          </div>
+      <div class="input-group commission-group">
+        <label class="flex-label">
+          <span>Comisión por Desembolso</span>
           <input type="checkbox" [(ngModel)]="includeCommission" (ngModelChange)="calculateLoan()">
         </label>
+        <div class="commission-toggle-wrapper" *ngIf="includeCommission">
+          <button [class.active]="commissionType === 'percentage'"
+                  (click)="commissionType = 'percentage'; calculateLoan()">%</button>
+          <button [class.active]="commissionType === 'fixed'"
+                  (click)="commissionType = 'fixed'; calculateLoan()">$</button>
+        </div>
         <div class="input-wrapper" [class.disabled-input]="!includeCommission">
           <span class="currency" *ngIf="commissionType === 'fixed'">$</span>
           <input type="number" *ngIf="commissionType === 'percentage'" [(ngModel)]="commissionRate" (ngModelChange)="calculateLoan()" step="0.1" placeholder="0.0" [disabled]="!includeCommission">

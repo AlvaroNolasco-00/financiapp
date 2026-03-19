@@ -1,75 +1,49 @@
 /* Specific styles for Loan Calculator */
 
-.flex-label {
-  display: flex !important;
-  justify-content: space-between;
+/* Commission Section Fixes */
+.commission-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.commission-toggle-wrapper {
+  display: flex;
   align-items: center;
-}
-
-.flex-label input[type="checkbox"] {
-  cursor: pointer;
-  accent-color: #6366f1;
-  width: 1.1rem;
-  height: 1.1rem;
-}
-
-.disabled-input {
-  opacity: 0.5;
-  background: rgba(255, 255, 255, 0.02) !important;
-  pointer-events: none;
-}
-
-.mode-toggle-container {
-  margin-bottom: 24px;
-  display: inline-flex;
+  gap: 12px;
   background: var(--glass-bg);
   padding: 4px;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid var(--glass-border);
+  width: fit-content;
 }
 
-.mode-toggle-container button {
+.commission-toggle-wrapper button {
   background: none;
   border: none;
-  padding: 8px 16px;
-  border-radius: 8px;
+  padding: 4px 10px;
+  border-radius: 6px;
   color: var(--text-muted);
   cursor: pointer;
-  font-family: 'Inter', sans-serif;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   transition: var(--transition);
 }
 
-.mode-toggle-container button.active {
+.commission-toggle-wrapper button.active {
   background: var(--primary);
   color: white;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
-.text-muted-small {
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  margin-top: 4px;
-  display: block;
+.commission-toggle-wrapper button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
-.btn-primary-outline {
-  width: 100%;
-  background: transparent;
-  border: 1px solid var(--primary);
+/* Extra Payments & Badges */
+.has-extra {
   color: var(--primary);
-  padding: 10px;
-  border-radius: 12px;
-  cursor: pointer;
-  font-weight: 600;
-  margin-bottom: 24px;
-  transition: var(--transition);
-}
-
-.btn-primary-outline:hover {
-  background: var(--primary);
-  color: white;
+  font-weight: 700;
 }
 
 .btn-action-add {
@@ -92,22 +66,49 @@
   transform: scale(1.1);
 }
 
-.has-extra {
-  color: var(--primary);
+/* Modal Specifics */
+.modal-content.card-premium {
+  padding: 40px !important;
+}
+
+/* Yearly Profits List */
+.yearly-profits-list {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.yearly-profits-list .stat-item {
+  border-top: none;
+  padding: 2px 0;
+  min-height: auto;
+}
+
+/* Savings Detail Grid */
+.savings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 20px;
+}
+
+.savings-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.savings-item .label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.savings-item .value {
+  font-size: 1.25rem;
   font-weight: 700;
 }
 
-.btn-export {
-  background: var(--glass-bg);
-  color: var(--text-main);
-  border: 1px solid var(--glass-border);
-  padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: var(--transition);
-}
-
+/* Table Scroll Fix */
 .table-scroll {
   max-height: 500px;
   overflow-y: auto;
@@ -117,31 +118,5 @@
 table th {
   position: sticky;
   top: 0;
-}
-
-tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.success-text {
-  color: #10b981;
-  font-weight: 700;
-}
-
-.savings-content {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  align-items: flex-start;
-}
-
-.savings-icon {
-  font-size: 3rem;
-  background: rgba(16, 185, 129, 0.1);
-  width: 80px;
-  height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
+  z-index: 10;
 }

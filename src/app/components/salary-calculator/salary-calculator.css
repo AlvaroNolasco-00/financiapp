@@ -13,3 +13,24 @@
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
 }
+
+/* Specific highlighting for Salary Tramos */
+.active-tramo {
+  background: rgba(99, 102, 241, 0.1) !important;
+  border-left: 4px solid var(--primary) !important;
+}
+
+.active-tramo td {
+  color: #fff !important;
+  font-weight: 600;
+}
+
+/* Distribution Chart Spacing */
+.chart-panel {
+  padding: 32px;
+}
+
+/* Summary Details Alignment */
+.value-isss { color: #10b981; }
+.value-afp { color: #fbbf24; }
+.value-renta { color: #ec4899; }

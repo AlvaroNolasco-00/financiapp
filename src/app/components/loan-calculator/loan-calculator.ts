@@ -359,6 +359,10 @@ export class LoanCalculatorComponent implements OnInit, OnDestroy {
                            (Math.pow(1 + monthlyRate, n) - 1);
     }
 
+    if (this.includeInsurance) {
+      this.monthlyPayment += this.insuranceFee;
+    }
+
     this.totalPayment = this.monthlyPayment * n;
     this.totalInterest = this.totalPayment - this.principal;
 
@@ -378,7 +382,8 @@ export class LoanCalculatorComponent implements OnInit, OnDestroy {
   }
 
   private calculateFlatAmortization() {
-    const totalInterest = this.principal * (this.annualRate / 100) * this.years;
+    const monthlyRate = this.annualRate / 100 / 12;
+    const n = this.termMonths;
 
     if (this.includeCommission) {
       if (this.commissionType === 'percentage') {
@@ -390,12 +395,23 @@ export class LoanCalculatorComponent implements OnInit, OnDestroy {
       this.totalCommission = 0;
     }
 
-    this.totalInsurance = (this.includeInsurance ? this.insuranceFee : 0) * this.termMonths;
-    this.totalPayment = this.principal + totalInterest + this.totalCommission + this.totalInsurance;
-    this.monthlyPayment = (this.principal + totalInterest) / this.termMonths;
-    this.totalInterest = totalInterest;
+    // Usar fórmula francesa (interés sobre saldo decreciente)
+    if (monthlyRate === 0) {
+      this.monthlyPayment = this.principal / n;
+    } else {
+      this.monthlyPayment = (this.principal * monthlyRate * Math.pow(1 + monthlyRate, n)) /
+                           (Math.pow(1 + monthlyRate, n) - 1);
+    }
 
-    this.generateAmortizationSchedule(0, this.termMonths, 'flat');
+    if (this.includeInsurance) {
+      this.monthlyPayment += this.insuranceFee;
+    }
+
+    this.totalPayment = this.monthlyPayment * n;
+    this.totalInterest = this.totalPayment - this.principal - ((this.includeInsurance ? this.insuranceFee : 0) * n);
+    this.totalInsurance = (this.includeInsurance ? this.insuranceFee : 0) * n;
+
+    this.generateAmortizationSchedule(monthlyRate, n, 'french');
   }
 
   addExtraPayment() {
@@ -503,7 +519,9 @@ export class LoanCalculatorComponent implements OnInit, OnDestroy {
 
       if (type === 'french') {
         interest = balance * monthlyRate;
-        principalPart = this.monthlyPayment - interest;
+        // monthlyPayment now includes insurance, so we subtract insurance to get the pure credit payment part
+        const pureMonthlyPayment = this.monthlyPayment - currentInsurance;
+        principalPart = pureMonthlyPayment - interest;
       } else {
         // Flat rate: interest is constant every month based on initial principal
         interest = this.totalInterest / numberOfPayments;

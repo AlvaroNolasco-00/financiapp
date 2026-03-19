@@ -60,14 +60,11 @@
 
       <div class="input-group">
         <label>Tipo de Tasa</label>
-        <div class="input-wrapper" style="position: relative;">
+        <div class="input-wrapper select-wrapper">
           <select [(ngModel)]="isRatePerYear" (ngModelChange)="isRatePerYear.set($event); updateYears()">
             <option [ngValue]="false">Tasa fija todos los años</option>
             <option [ngValue]="true">Tasa diferente por año</option>
           </select>
-          <div style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-muted);">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-          </div>
         </div>
       </div>
 
@@ -99,14 +96,11 @@
 
       <div class="input-group">
         <label>Frecuencia de Capitalización</label>
-        <div class="input-wrapper" style="position: relative;">
+        <div class="input-wrapper select-wrapper">
           <select [(ngModel)]="capitalizationFrequency" (ngModelChange)="capitalizationFrequency.set($event)">
             <option value="mensual">Mensualmente (diluido)</option>
             <option value="anual">Anualmente (consolidado)</option>
           </select>
-          <div style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-muted);">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-          </div>
         </div>
       </div>
 

@@ -1,8 +1,8 @@
-import { Component, OnInit, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, signal, computed, ChangeDetectionStrategy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BaseChartDirective, provideCharts, withDefaultRegisterables } from 'ng2-charts';
-import { ChartConfiguration, ChartData } from 'chart.js';
+import { ChartConfiguration, ChartData, Chart, Plugin } from 'chart.js';
 import { LoanCalculatorComponent } from '../loan-calculator/loan-calculator';
 import { InvestmentCalculatorComponent } from '../investment-calculator/investment-calculator';
 
@@ -43,8 +43,11 @@ interface ExtraPayment {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CompoundCalculatorComponent implements OnInit {
+  @ViewChild('withdrawalsSection') withdrawalsSection!: ElementRef;
+
   // UI State
   activeStep = signal<'loan' | 'investment' | 'results'>('loan');
+  monthHighlighted = signal<boolean>(false);
 
   // --- STATE FROM CHILDREN ---
   loanData = signal<any>(null);
@@ -72,31 +75,90 @@ export class CompoundCalculatorComponent implements OnInit {
       monthsPaid: data.amortizationSchedule?.length || 0,
       schedule: data.amortizationSchedule,
       principal: data.principal,
-      years: data.years
+      years: data.years,
+      calculatorMode: data.calculatorMode
     };
   });
 
   investmentResults = computed(() => {
-    const data = this.investmentData();
+    const data = this.extendedInvestmentData();
     if (!data) return null;
     return {
-      finalBalance: data.results.finalBalance,
-      totalInvested: data.results.totalInvested,
-      totalInterestEarned: data.results.totalInterestEarned,
-      schedule: data.results.investmentSchedule,
-      chartLabels: data.results.chartLabels,
-      balanceTrend: data.results.totalBalanceTrend
+      finalBalance: data.finalBalance,
+      totalInvested: data.totalInvested,
+      totalInterestEarned: data.totalInterestEarned,
+      schedule: data.investmentSchedule,
+      chartLabels: data.chartLabels,
+      balanceTrend: data.totalBalanceTrend
     };
+  });
+
+  // Signal to handle disbursement subtraction based on loan type
+  injectedCapitalForInvestment = computed(() => {
+    const loan = this.loanData();
+    if (!loan) return 0;
+    
+    // Si es crédito personal (french mode/loan), se resta la comisión de desembolso
+    // Si es extrafinanciamiento, el monto de desembolso no se resta (se paga en el siguiente corte)
+    if (loan.calculatorMode === 'loan') {
+      return loan.principal - loan.totalCommission;
+    } else {
+      return loan.principal;
+    }
+  });
+
+  // Derived signal that extends the investment schedule if the loan lasts longer
+  extendedInvestmentData = computed(() => {
+    const inv = this.investmentData();
+    const loan = this.loanData();
+    if (!inv || !loan) return null;
+
+    const invSchedule = [...inv.results.investmentSchedule];
+    const loanSchedule = loan.amortizationSchedule;
+    
+    // We extend the schedule IF loan duration > investment duration
+    if (loanSchedule.length > invSchedule.length) {
+      let currentBalance = inv.results.finalBalance; // realEquity
+      const monthlyPayment = loan.monthlyPayment;
+
+      for (let i = invSchedule.length + 1; i <= loanSchedule.length; i++) {
+        currentBalance = Math.max(0, currentBalance - monthlyPayment);
+        
+        // Push a row that simulates the decay
+        // Note: leveragedBalance also decays
+        invSchedule.push({
+          month: i,
+          year: Math.ceil(i / 12),
+          startingBalance: (currentBalance + monthlyPayment) * (inv.leverage || 1),
+          contribution: 0,
+          interestEarned: 0,
+          endingBalance: currentBalance * (inv.leverage || 1),
+          totalInvested: inv.results.totalInvested,
+          totalInterestEarned: inv.results.totalInterestEarned,
+          realEquity: currentBalance,
+          leveragedBalance: currentBalance * (inv.leverage || 1)
+        });
+      }
+
+      return {
+        ...inv.results,
+        finalBalance: currentBalance,
+        investmentSchedule: invSchedule
+      };
+    }
+
+    return inv.results;
   });
 
   // Re-calculating the chart trends specifically for the comparativa
   lineChartData = computed<ChartData<'line'>>(() => {
+    const invExtended = this.extendedInvestmentData();
     const inv = this.investmentData();
     const loan = this.loanData();
 
-    if (!inv || !loan) return { labels: [], datasets: [] };
+    if (!invExtended || !loan || !inv) return { labels: [], datasets: [] };
 
-    const invSchedule = inv.results.investmentSchedule;
+    const invSchedule = invExtended.investmentSchedule;
     const loanSchedule = loan.amortizationSchedule;
 
     // Determine max duration in months
@@ -104,7 +166,7 @@ export class CompoundCalculatorComponent implements OnInit {
     const interval = 1;
 
     const labels: string[] = ['Mes 0'];
-    const initialReal = (inv.initialInvestment || 0) + (inv.injectedCapital || 0);
+    const initialReal = (inv.initialInvestment || 0) + this.injectedCapitalForInvestment();
     const initialLeveraged = initialReal * (inv.leverage || 1);
 
     const realEquityPoints: number[] = [initialReal];
@@ -118,17 +180,18 @@ export class CompoundCalculatorComponent implements OnInit {
         labels.push(`Mes ${i}`);
 
         // Investment data point
-        let invRow = invSchedule.find((r: any) => r.month === i);
-        if (!invRow && i > invSchedule.length) {
-          invRow = invSchedule[invSchedule.length - 1]; // Carry forward
-        }
-
+        const invRow = invSchedule.find((r: any) => r.month === i);
+        
         if (invRow) {
           realEquityPoints.push(invRow.realEquity);
           leveragedPoints.push(invRow.leveragedBalance);
           interestPoints.push(invRow.totalInterestEarned);
+        } else if (i > invSchedule.length) {
+          const lastRow = invSchedule[invSchedule.length - 1];
+          realEquityPoints.push(lastRow.realEquity);
+          leveragedPoints.push(lastRow.leveragedBalance);
+          interestPoints.push(lastRow.totalInterestEarned);
         } else {
-          // Fallback if not exactly at interval
           realEquityPoints.push(realEquityPoints[realEquityPoints.length - 1]);
           leveragedPoints.push(leveragedPoints[leveragedPoints.length - 1]);
           interestPoints.push(interestPoints[interestPoints.length - 1]);
@@ -191,24 +254,32 @@ export class CompoundCalculatorComponent implements OnInit {
 
   netResult = computed(() => {
     const loan = this.loanResults();
-    const invest = this.investmentResults();
+    const invest = this.extendedInvestmentData();
 
     if (!loan || !invest) return { netProfit: 0, totalOutofPocket: 0, totalCosts: 0, totalEarnings: 0 };
 
     // Total out of pocket = Inversion Propia Inicial + Pagos Préstamo al Banco
-    const initialOwnInvestment = invest.totalInvested - (this.loanData()?.principal || 0);
+    const initialOwnInvestment = invest.totalInvested - this.injectedCapitalForInvestment();
 
-    const totalOutofPocket = initialOwnInvestment + loan.totalPayment;
+    // Si la inversión dura menos que el préstamo, ya estamos restando las cuotas en extendedInvestmentData
+    // Por lo tanto, el totalOutofPocket solo debe contar las cuotas pagadas MIENTRAS la inversión estaba activa
+    // para no cobrar doble.
+    // Pero para simplificar y ser conservadores:
+    // Profit = Final Balance (ya neto de deuda post-inversion) - Initial Own Investment - Pagos durante inversion.
+    
+    // Mejor lógica: 
+    // Si loan duration > inv duration:
+    // netProfit = invest.finalBalance (que ya tiene restadas las cuotas restantes) - initialOwnInvestment - (cuotas pagadas durante vida inversion)
+    
+    const invMonths = this.investmentData()?.results.investmentSchedule.length || 0;
+    const paymentsDuringInversion = loan.schedule
+      .filter((r: any) => r.month <= invMonths)
+      .reduce((sum: number, r: any) => sum + r.payment, 0);
 
-    const netProfit = invest.finalBalance - totalOutofPocket;
+    const totalOutofPocket = initialOwnInvestment + paymentsDuringInversion;
+
+    const netProfit = invest.finalBalance - initialOwnInvestment - paymentsDuringInversion;
     const totalCosts = loan.totalInterest + loan.totalCommission + loan.totalInsurance;
-
-    /* Logic:
-       Investment Term is independent because app-investment-calculator
-       has its own internal years signal.
-       The annual rate field visibility is handled internally in
-       app-investment-calculator.html using *ngIf="!isRatePerYear()".
-    */
 
     return {
       netProfit,
@@ -219,16 +290,108 @@ export class CompoundCalculatorComponent implements OnInit {
   });
 
   // --- CHARTS ---
+  public chartPlugins: Plugin[] = [
+    {
+      id: 'crosshair',
+      afterDraw: (chart: any) => {
+        if (chart.tooltip?._active?.length) {
+          const activePoint = chart.tooltip._active[0];
+          const ctx = chart.ctx;
+          const x = activePoint.element.x;
+          const topY = chart.scales.y.top;
+          const bottomY = chart.scales.y.bottom;
+
+          // Draw vertical line
+          ctx.save();
+          ctx.beginPath();
+          ctx.setLineDash([5, 5]);
+          ctx.moveTo(x, topY);
+          ctx.lineTo(x, bottomY);
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
+          ctx.stroke();
+          
+          // Draw "Click to add" label
+          ctx.setLineDash([]);
+          ctx.fillStyle = '#6366f1';
+          const labelText = chart.data.labels?.[activePoint.index] || '';
+          const label = `📌 Clic: Abonar en ${labelText}`;
+          ctx.font = 'bold 11px Inter';
+          const textWidth = ctx.measureText(label).width;
+          
+          ctx.beginPath();
+          ctx.roundRect(x - textWidth/2 - 8, topY - 25, textWidth + 16, 20, 5);
+          ctx.fill();
+          
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(label, x - textWidth/2, topY - 11);
+          
+          ctx.restore();
+        }
+      }
+    }
+  ];
+
   public lineChartOptions: ChartConfiguration<'line'>['options'] = {
     responsive: true,
     maintainAspectRatio: false,
+    onClick: (event: any, elements, chart) => {
+      const points = chart.getElementsAtEventForMode(event, 'index', { intersect: false }, false);
+      if (points.length > 0) {
+        const activePoint = points[0];
+        const label = chart.data.labels?.[activePoint.index];
+        
+        if (label && typeof label === 'string') {
+          const monthNumber = parseInt(label.replace('Mes ', ''));
+          this.newWithdrawalMonth.set(monthNumber);
+          
+          // Scroll to section
+          this.withdrawalsSection?.nativeElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          
+          // Trigger pulse highlight
+          this.monthHighlighted.set(true);
+          setTimeout(() => this.monthHighlighted.set(false), 2000);
+        }
+      }
+    },
+    onHover: (event: any, elements, chart) => {
+      const points = chart.getElementsAtEventForMode(event, 'index', { intersect: false }, false);
+      if (event.native?.target) {
+        event.native.target.style.cursor = points.length > 0 ? 'pointer' : 'default';
+      }
+    },
     plugins: {
-      legend: { display: true, labels: { color: '#94a3b8', font: { family: 'Inter' } } },
-      tooltip: { mode: 'index', intersect: false, backgroundColor: '#1e293b', titleColor: '#f8fafc', bodyColor: '#cbd5e1' }
+      legend: { 
+        display: true, 
+        position: 'top',
+        labels: { 
+          color: '#94a3b8', 
+          usePointStyle: true,
+          pointStyle: 'circle',
+          padding: 20,
+          font: { family: 'Inter', size: 12, weight: 600 } 
+        } 
+      },
+      tooltip: { 
+        mode: 'index', 
+        intersect: false, 
+        backgroundColor: '#1e293b', 
+        titleColor: '#f8fafc', 
+        bodyColor: '#cbd5e1',
+        padding: 10,
+        cornerRadius: 8,
+        displayColors: true
+      }
     },
     scales: {
-      y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8' } },
-      x: { grid: { display: false }, ticks: { color: '#94a3b8', autoSkip: true, maxTicksLimit: 10 } }
+      y: { 
+        grid: { color: 'rgba(255, 255, 255, 0.05)' }, 
+        ticks: { 
+          color: '#94a3b8',
+          callback: (value: any) => '$' + value.toLocaleString()
+        } 
+      },
+      x: { grid: { display: false }, ticks: { color: '#94a3b8', autoSkip: true, maxTicksLimit: 12 } }
     }
   };
 
