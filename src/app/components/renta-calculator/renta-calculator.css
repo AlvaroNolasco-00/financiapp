@@ -124,6 +124,158 @@
   color: #fff;
 }
 
+/* Toggle pequeño inline con el label del input */
+.toggle-small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toggle-small input[type="checkbox"] {
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+/* Toggle de IVA para profesionales */
+.iva-toggle-group {
+  margin-top: -8px;
+  margin-bottom: 20px;
+}
+
+/* Toggle genérico label-checkbox */
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  margin-top: 12px;
+}
+
+.toggle-label input[type="checkbox"] {
+  accent-color: var(--primary);
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+}
+
+/* Aviso cuando deducciones no aplican */
+.deduction-not-applied-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px dashed rgba(99, 102, 241, 0.3);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 0.82rem;
+  color: #a5b4fc;
+  line-height: 1.5;
+}
+
+.deduction-not-applied-notice .notice-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Inputs deshabilitados dentro de deducciones */
+.inputs-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Incluir aguinaldo en declaración anual */
+.aguinaldo-include-annual {
+  margin-top: 8px;
+}
+
+/* Threshold warning */
+.threshold-warning {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px dashed rgba(245, 158, 11, 0.4);
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+.threshold-warning .stat-label {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+/* Warning text for deductions */
+.warning-text {
+  color: #f59e0b !important;
+}
+
+/* Aguinaldo Panel */
+.aguinaldo-panel {
+  margin-top: 8px;
+}
+
+.aguinaldo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px 0;
+  user-select: none;
+}
+
+.aguinaldo-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.aguinaldo-title h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #f8fafc;
+}
+
+.aguinaldo-icon {
+  font-size: 1.5rem;
+}
+
+.aguinaldo-toggle {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.aguinaldo-content {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.aguinaldo-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.aguinaldo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+.aguinaldo-results {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 @media (max-width: 968px) {
   .contract-selector { grid-template-columns: 1fr; }
+  .aguinaldo-grid { grid-template-columns: 1fr; }
 }

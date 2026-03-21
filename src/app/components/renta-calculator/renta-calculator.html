@@ -30,86 +30,161 @@
         <button [class.active]="!isMonthly()" (click)="setMode(false)">Anual</button>
       </div>
 
+      <!-- Ingreso principal -->
       <div class="input-group">
-        <label>{{ isMonthly() ? 'Ingreso Mensual Bruto' : 'Ingreso Anual Bruto' }}</label>
+        <div class="label-with-cap">
+          <label>
+            @if (isMonthly()) {
+              Ingreso Mensual Bruto
+            } @else if (annualInputIsMonthly()) {
+              Salario Mensual
+            } @else {
+              Ingreso Anual Bruto
+            }
+          </label>
+          @if (!isMonthly()) {
+            <label class="toggle-small">
+              <input type="checkbox"
+                [ngModel]="annualInputIsMonthly()"
+                (ngModelChange)="toggleAnnualInputMode($event)">
+              Ingresar mensual
+            </label>
+          }
+        </div>
         <div class="input-wrapper">
           <span class="currency">$</span>
-          <input type="number" [ngModel]="income()" (ngModelChange)="income.set($event)" placeholder="0.00">
+          <input type="number" [ngModel]="income()" (ngModelChange)="income.set($event)" placeholder="0.00" min="0">
         </div>
+        @if (!isMonthly() && annualInputIsMonthly()) {
+          <p class="input-help">Equivalente anual: <strong>{{ effectiveAnnualIncome() | currency }}</strong></p>
+        }
       </div>
 
-      <!-- Professional Specific Inputs (Annual) -->
-      @if (!isMonthly() && contractType() === 'professional') {
-        <div class="input-group">
-          <label>Gastos Operativos Deducibles</label>
-          <div class="input-wrapper">
-            <span class="currency">$</span>
-            <input type="number" [ngModel]="operatingExpenses()" (ngModelChange)="operatingExpenses.set($event)" placeholder="0.00">
-          </div>
-          <p class="input-help">Gastos necesarios para generar tu renta (alquiler, insumos, etc).</p>
+      <!-- Toggle IVA para profesionales en modo mensual -->
+      @if (isMonthly() && contractType() === 'professional') {
+        <div class="iva-toggle-group">
+          <label class="toggle-label">
+            <input type="checkbox" [ngModel]="ivaIncluded()" (ngModelChange)="ivaIncluded.set($event)">
+            El monto ingresado incluye IVA (13%)
+          </label>
+          @if (ivaIncluded()) {
+            <p class="input-help">Honorario base (sin IVA): <strong>{{ breakdown().taxableBase | currency }}</strong></p>
+          }
         </div>
       }
 
-      <!-- Annual Deductions (for both, but only in annual mode) -->
+      <!-- Retención acumulada real (Profesionales, modo anual) -->
+      @if (!isMonthly() && contractType() === 'professional') {
+        <div class="input-group">
+          <label>Retenciones Acumuladas del Año</label>
+          <div class="input-wrapper">
+            <span class="currency">$</span>
+            <input type="number" [ngModel]="accumulatedWithholding()" (ngModelChange)="accumulatedWithholding.set($event)" placeholder="0.00" min="0">
+          </div>
+          <p class="input-help">Total retenido por tus clientes según tus constancias de retención (Art. 156 CT).</p>
+        </div>
+      }
+
+      <!-- Gastos operativos (Profesionales, modo anual) -->
+      @if (!isMonthly() && contractType() === 'professional') {
+        <div class="input-group">
+          <div class="label-with-cap">
+            <label>Gastos Operativos Deducibles</label>
+            <span class="cap-info">Máx. 50% ingresos</span>
+          </div>
+          <div class="input-wrapper">
+            <span class="currency">$</span>
+            <input type="number" [ngModel]="operatingExpenses()" (ngModelChange)="operatingExpenses.set($event)" placeholder="0.00" min="0">
+          </div>
+          @if (breakdown().operatingExpensesCapExceeded) {
+            <p class="input-help warning-text">
+              ⚠ Limitado al 50% de ingresos brutos (Art. 29 LISR): {{ breakdown().operatingExpensesCap | currency }}
+            </p>
+          } @else {
+            <p class="input-help">Gastos necesarios para generar tu renta (alquiler, insumos, etc).</p>
+          }
+        </div>
+      }
+
+      <!-- Ingresos adicionales (Empleados, modo anual) -->
+      @if (!isMonthly() && contractType() === 'employee') {
+        <div class="input-group">
+          <label>Ingresos Adicionales (Freelance / Honorarios)</label>
+          <div class="input-wrapper">
+            <span class="currency">$</span>
+            <input type="number" [ngModel]="additionalIncome()" (ngModelChange)="additionalIncome.set($event)" placeholder="0.00" min="0">
+          </div>
+          <p class="input-help">Honorarios u otros ingresos fuera de tu salario principal del año.</p>
+        </div>
+      }
+
+      <!-- Deducciones personales (modo anual) -->
       @if (!isMonthly()) {
         <div class="deductions-container">
           <div class="divider">Deducciones Personales</div>
 
-          <div class="input-group">
+          @if (breakdown().deductionsNotApplied) {
+            <div class="deduction-not-applied-notice">
+              <span class="notice-icon">ℹ</span>
+              <span>Las deducciones no aplican — tus ingresos totales no superan $9,100 anuales (Art. 33 LISR).</span>
+            </div>
+          }
+
+          <div class="input-group" [class.inputs-disabled]="breakdown().deductionsNotApplied">
             <div class="label-with-cap">
               <label>Gastos Médicos</label>
               <span class="cap-info">Máx. $800</span>
             </div>
             <div class="input-wrapper">
               <span class="currency">$</span>
-              <input type="number" [ngModel]="medicalExpenses()" (ngModelChange)="medicalExpenses.set($event)" placeholder="0.00">
+              <input type="number" [ngModel]="medicalExpenses()" (ngModelChange)="medicalExpenses.set($event)" placeholder="0.00" min="0" [attr.disabled]="breakdown().deductionsNotApplied ? true : null">
             </div>
           </div>
 
-          <div class="input-group">
+          <div class="input-group" [class.inputs-disabled]="breakdown().deductionsNotApplied">
             <div class="label-with-cap">
               <label>Gastos de Educación</label>
               <span class="cap-info">Máx. $800</span>
             </div>
             <div class="input-wrapper">
               <span class="currency">$</span>
-              <input type="number" [ngModel]="educationExpenses()" (ngModelChange)="educationExpenses.set($event)" placeholder="0.00">
+              <input type="number" [ngModel]="educationExpenses()" (ngModelChange)="educationExpenses.set($event)" placeholder="0.00" min="0" [attr.disabled]="breakdown().deductionsNotApplied ? true : null">
             </div>
           </div>
 
-          <div class="input-group">
+          <div class="input-group" [class.inputs-disabled]="breakdown().deductionsNotApplied">
             <div class="label-with-cap">
               <label>Donaciones</label>
               <span class="cap-info">Máx. 10% Renta Neta</span>
             </div>
             <div class="input-wrapper">
               <span class="currency">$</span>
-              <input type="number" [ngModel]="donations()" (ngModelChange)="donations.set($event)" placeholder="0.00">
+              <input type="number" [ngModel]="donations()" (ngModelChange)="donations.set($event)" placeholder="0.00" min="0" [attr.disabled]="breakdown().deductionsNotApplied ? true : null">
             </div>
           </div>
         </div>
       }
 
+      <!-- Resumen de resultados -->
       <div class="summary-stats">
         @let b = breakdown();
 
-        <!-- Professional Monthly Summary -->
-        @if (isMonthly() && contractType() === 'professional') {
+        <!-- Empleado mensual -->
+        @if (isMonthly() && contractType() === 'employee') {
           <div class="stat-item">
-            <span class="stat-label">Retención ISR (10% fijo)</span>
-            <span class="stat-value secondary-text">{{ b.netTax | currency }}</span>
+            <span class="stat-label">ISSS (3% tope $1,000)</span>
+            <span class="stat-value warning-text">- {{ b.isssDeduction | currency }}</span>
           </div>
           <div class="stat-item">
-            <span class="stat-label">IVA (13%) Informativo</span>
-            <span class="stat-value">{{ b.ivaAmount | currency }}</span>
+            <span class="stat-label">AFP (7.25%)</span>
+            <span class="stat-value warning-text">- {{ b.afpDeduction | currency }}</span>
           </div>
           <div class="stat-item">
-            <span class="stat-label">Pago a Cuenta (1.5%)</span>
-            <span class="stat-value">{{ b.pagoCuenta | currency }}</span>
+            <span class="stat-label">Base Gravable ISR</span>
+            <span class="stat-value">{{ b.taxableBase | currency }}</span>
           </div>
-        } @else {
           <div class="stat-item highlight">
-            <span class="stat-label">Impuesto {{ isMonthly() ? 'a Retener' : 'a Pagar Anual' }}</span>
+            <span class="stat-label">ISR a Retener</span>
             <div class="value-with-percent">
               <span class="stat-value secondary-text">{{ b.netTax | currency }}</span>
               <span class="percent-badge warning">{{ b.effectiveRate | number:'1.1-1' }}%</span>
@@ -117,16 +192,99 @@
           </div>
         }
 
+        <!-- Profesional mensual -->
+        @if (isMonthly() && contractType() === 'professional') {
+          @if (b.belowWithholdingThreshold) {
+            <div class="stat-item threshold-warning">
+              <span class="stat-label">Sin retención — ingreso bajo umbral</span>
+              <span class="stat-value">{{ getWithholdingThreshold() | currency }}</span>
+            </div>
+          } @else {
+            <div class="stat-item highlight">
+              <span class="stat-label">Retención ISR (10% fijo)</span>
+              <span class="stat-value secondary-text">{{ b.netTax | currency }}</span>
+            </div>
+          }
+          <div class="stat-item">
+            <span class="stat-label">IVA (13%) Informativo</span>
+            <span class="stat-value">{{ b.ivaAmount | currency }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Pago a Cuenta (1.75%)</span>
+            <span class="stat-value">{{ b.pagoCuenta | currency }}</span>
+          </div>
+        }
+
+        <!-- Empleado anual -->
+        @if (!isMonthly() && contractType() === 'employee') {
+          @if (b.additionalIncome) {
+            <div class="stat-item">
+              <span class="stat-label">Salario Principal</span>
+              <span class="stat-value">{{ b.income | currency }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Ingresos Adicionales</span>
+              <span class="stat-value">{{ b.additionalIncome | currency }}</span>
+            </div>
+            @if (b.aguinaldoTaxable) {
+              <div class="stat-item">
+                <span class="stat-label">Aguinaldo Gravable</span>
+                <span class="stat-value">{{ b.aguinaldoTaxable | currency }}</span>
+              </div>
+            }
+            <div class="stat-item">
+              <span class="stat-label">Total Ingresos Brutos</span>
+              <span class="stat-value">{{ b.totalGrossIncome | currency }}</span>
+            </div>
+          } @else if (b.aguinaldoTaxable) {
+            <div class="stat-item">
+              <span class="stat-label">Aguinaldo Gravable incluido</span>
+              <span class="stat-value">{{ b.aguinaldoTaxable | currency }}</span>
+            </div>
+          }
+          <div class="stat-item">
+            <span class="stat-label">ISSS Anual (estimado)</span>
+            <span class="stat-value warning-text">- {{ b.isssDeduction | currency }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">AFP Anual (estimado)</span>
+            <span class="stat-value warning-text">- {{ b.afpDeduction | currency }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Base Gravable ISR</span>
+            <span class="stat-value">{{ b.taxableBase | currency }}</span>
+          </div>
+          <div class="stat-item highlight">
+            <span class="stat-label">ISR a Pagar Anual</span>
+            <div class="value-with-percent">
+              <span class="stat-value secondary-text">{{ b.netTax | currency }}</span>
+              <span class="percent-badge warning">{{ b.effectiveRate | number:'1.1-1' }}%</span>
+            </div>
+          </div>
+        }
+
+        <!-- Profesional anual -->
         @if (!isMonthly() && contractType() === 'professional') {
           <div class="stat-item">
-            <span class="stat-label">Total Retenciones (10% x 12)</span>
+            <span class="stat-label">Base Gravable ISR</span>
+            <span class="stat-value">{{ b.taxableBase | currency }}</span>
+          </div>
+          <div class="stat-item highlight">
+            <span class="stat-label">ISR Calculado Anual</span>
+            <div class="value-with-percent">
+              <span class="stat-value secondary-text">{{ b.netTax | currency }}</span>
+              <span class="percent-badge warning">{{ b.effectiveRate | number:'1.1-1' }}%</span>
+            </div>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Retenciones Acumuladas</span>
             <span class="stat-value secondary-text">{{ b.annualWithholdingAccumulated | currency }}</span>
           </div>
           <div class="stat-item difference-row">
             <span class="stat-label">Balance Final Declaración</span>
             <span class="stat-value" [class.value-renta]="(b.taxDifference || 0) > 0" [class.value-isss]="(b.taxDifference || 0) <= 0">
               {{ b.taxDifference | currency }}
-              {{ (b.taxDifference || 0) > 0 ? '(Pagar)' : '(A favor)' }}
+              {{ (b.taxDifference || 0) > 0 ? '(A pagar)' : '(A favor)' }}
             </span>
           </div>
         }
@@ -152,7 +310,7 @@
       </div>
     </div>
 
-    <!-- Full Width Panel: Renta Tables (Only for Employee Monthly or Annual) -->
+    <!-- Full Width Panel: Tramos ISR -->
     @if (!isMonthly() || contractType() === 'employee') {
       <div class="table-panel card-premium full-width">
         <div class="table-header">
@@ -189,7 +347,74 @@
       </div>
     }
 
-    <!-- Info Panel: Legal Context -->
+    <!-- Calculadora de Aguinaldo -->
+    <div class="aguinaldo-panel card-premium full-width">
+      <div class="aguinaldo-header" (click)="showAguinaldo.set(!showAguinaldo())">
+        <div class="aguinaldo-title">
+          <span class="aguinaldo-icon">🎄</span>
+          <h3>Calculadora de Aguinaldo</h3>
+        </div>
+        <span class="aguinaldo-toggle">{{ showAguinaldo() ? '▲' : '▼' }}</span>
+      </div>
+
+      @if (showAguinaldo()) {
+        <div class="aguinaldo-content">
+          <p class="aguinaldo-desc">
+            Los primeros <strong>{{ getAguinaldoExempt() | currency }}</strong> de aguinaldo están exentos de ISR
+            (2 salarios mínimos del sector comercio). El excedente tributa con los tramos anuales.
+          </p>
+          <div class="aguinaldo-grid">
+            <div class="input-group">
+              <label>Total de Aguinaldo Recibido</label>
+              <div class="input-wrapper">
+                <span class="currency">$</span>
+                <input type="number" [ngModel]="aguinaldoAmount()" (ngModelChange)="aguinaldoAmount.set($event)" placeholder="0.00" min="0">
+              </div>
+
+              <!-- Incluir aguinaldo en declaración anual (solo empleado, modo anual) -->
+              @if (!isMonthly() && contractType() === 'employee') {
+                <div class="aguinaldo-include-annual">
+                  <label class="toggle-label">
+                    <input type="checkbox"
+                      [ngModel]="includeAguinaldoInAnnual()"
+                      (ngModelChange)="includeAguinaldoInAnnual.set($event)">
+                    Incluir en la declaración anual
+                  </label>
+                  @if (includeAguinaldoInAnnual() && aguinaldoBreakdown().taxableAmount > 0) {
+                    <p class="input-help">Monto gravable agregado a tu renta anual: <strong>{{ aguinaldoBreakdown().taxableAmount | currency }}</strong></p>
+                  }
+                  @if (includeAguinaldoInAnnual() && aguinaldoBreakdown().taxableAmount === 0) {
+                    <p class="input-help">Tu aguinaldo está totalmente exento. No afecta la declaración.</p>
+                  }
+                </div>
+              }
+            </div>
+
+            @let ag = aguinaldoBreakdown();
+            <div class="aguinaldo-results">
+              <div class="stat-item">
+                <span class="stat-label">Monto Exento</span>
+                <span class="stat-value value-isss">{{ ag.exemptAmount | currency }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Monto Gravable</span>
+                <span class="stat-value">{{ ag.taxableAmount | currency }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">ISR sobre Aguinaldo</span>
+                <span class="stat-value secondary-text">{{ ag.isr | currency }}</span>
+              </div>
+              <div class="stat-item total-row">
+                <span class="stat-label">Aguinaldo Neto</span>
+                <span class="stat-value primary-text">{{ ag.netAguinaldo | currency }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Info Panel: Contexto Legal -->
     <div class="info-panel full-width">
       <div class="info-header">
         <h3>Información Importante (Ejercicio 2026)</h3>
@@ -200,42 +425,47 @@
         @if (contractType() === 'employee') {
           <div class="info-card">
             <div class="info-icon">👔</div>
-            <h4>Ley del Seguro Social</h4>
-            <p>El patrono retiene el 3% para ISSS (tope $1,000) y 7.25% para AFP antes de calcular la renta.</p>
+            <h4>ISSS y AFP</h4>
+            <p>Se descuentan antes del ISR. ISSS: 3% sobre salario (tope $1,000/mes = máx $30). AFP: 7.25% sin tope.</p>
           </div>
           <div class="info-card">
             <div class="info-icon">⚖️</div>
             <h4>Base Exenta</h4>
-            <p>Los primeros $550 de tu salario mensual están libres de impuesto sobre la renta.</p>
+            <p>Los primeros $550 de la base gravable (salario menos ISSS y AFP) están libres de ISR mensual.</p>
+          </div>
+          <div class="info-card">
+            <div class="info-icon">💼</div>
+            <h4>Ingresos Adicionales</h4>
+            <p>Si recibes honorarios o freelance además de tu salario, deben sumarse en tu declaración anual.</p>
           </div>
         } @else {
           <div class="info-card">
             <div class="info-icon">💼</div>
-            <h4>Artículo 156 C.T.</h4>
-            <p>Toda persona jurídica que pague honorarios a una persona natural debe retener el 10% fijo en concepto de ISR.</p>
+            <h4>Artículo 156 CT</h4>
+            <p>Toda persona jurídica que pague honorarios debe retener el 10% fijo. Solo aplica si el pago supera $113.64 por servicio.</p>
           </div>
           <div class="info-card">
             <div class="info-icon">📄</div>
             <h4>IVA e Informe</h4>
-            <p>Si eres emisor de factura, recuerda sumar el 13% de IVA y declarar mensualmente aunque no haya movimiento.</p>
+            <p>El IVA (13%) aplica sobre tus honorarios. Si el cliente ya pagó IVA incluido, la base de retención ISR es el honorario sin IVA.</p>
           </div>
           <div class="info-card">
             <div class="info-icon">💹</div>
-            <h4>Pago a Cuenta</h4>
-            <p>Los profesionales independientes deben autoliquidar el 1.5% mensual sobre sus ingresos brutos.</p>
+            <h4>Gastos Operativos</h4>
+            <p>Puedes deducir hasta el 50% de tus ingresos brutos como gastos necesarios para generar renta (Art. 29 LISR).</p>
           </div>
         }
 
         <div class="info-card">
           <div class="info-icon">🏥</div>
-          <h4>Deducciones</h4>
-          <p>Gastos médicos y de educación son deducibles hasta $800 cada uno al final del año si tus ingresos > $9,100.</p>
+          <h4>Deducciones Personales</h4>
+          <p>Gastos médicos y educación son deducibles hasta $800 c/u al año. Solo aplica si ingresos anuales superan $9,100.</p>
         </div>
 
         <div class="info-card">
-          <div class="info-icon">🏢</div>
-          <h4>Gastos Operativos</h4>
-          <p>Solo para servicios profesionales: puedes deducir gastos como internet, local y materiales vinculados a tu labor.</p>
+          <div class="info-icon">🎄</div>
+          <h4>Aguinaldo</h4>
+          <p>Los primeros $730 de aguinaldo están exentos (2 salarios mínimos del sector comercio). El resto tributa con tramos anuales.</p>
         </div>
 
         <div class="info-card">

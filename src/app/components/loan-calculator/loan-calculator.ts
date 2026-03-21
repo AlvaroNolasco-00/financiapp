@@ -282,11 +282,7 @@ export class LoanCalculatorComponent implements OnInit, OnDestroy {
     const originalExtras = [...this.extraPayments];
     this.extraPayments = []; // Temporarily clear extras
 
-    if (this.calculatorMode === 'loan') {
-      this.calculateFrenchAmortization();
-    } else {
-      this.calculateFlatAmortization();
-    }
+    this.calculateFrenchAmortization();
 
     this.baseTotalPayment = this.totalPayment;
     this.baseTotalInterest = this.totalInterest;
@@ -294,11 +290,7 @@ export class LoanCalculatorComponent implements OnInit, OnDestroy {
 
     // Step 2: Calculate Actual Scenario (with extras)
     this.extraPayments = originalExtras;
-    if (this.calculatorMode === 'loan') {
-      this.calculateFrenchAmortization();
-    } else {
-      this.calculateFlatAmortization();
-    }
+    this.calculateFrenchAmortization();
 
     // Step 3: Compute savings
     this.savedInterest = Math.max(0, this.baseTotalInterest - this.totalInterest);
@@ -395,23 +387,20 @@ export class LoanCalculatorComponent implements OnInit, OnDestroy {
       this.totalCommission = 0;
     }
 
-    // Usar fórmula francesa (interés sobre saldo decreciente)
-    if (monthlyRate === 0) {
-      this.monthlyPayment = this.principal / n;
-    } else {
-      this.monthlyPayment = (this.principal * monthlyRate * Math.pow(1 + monthlyRate, n)) /
-                           (Math.pow(1 + monthlyRate, n) - 1);
-    }
+    // Amortización alemana: capital constante, interés sobre saldo decreciente
+    const principalPart = this.principal / n;
+    const firstMonthInterest = monthlyRate === 0 ? 0 : this.principal * monthlyRate;
+    const currentInsurance = this.includeInsurance ? this.insuranceFee : 0;
 
-    if (this.includeInsurance) {
-      this.monthlyPayment += this.insuranceFee;
-    }
+    // monthlyPayment = primera cuota (la más alta)
+    this.monthlyPayment = principalPart + firstMonthInterest + currentInsurance;
 
-    this.totalPayment = this.monthlyPayment * n;
-    this.totalInterest = this.totalPayment - this.principal - ((this.includeInsurance ? this.insuranceFee : 0) * n);
-    this.totalInsurance = (this.includeInsurance ? this.insuranceFee : 0) * n;
+    // totalInterest = P * r * (n+1)/2  (suma de serie aritmética de intereses)
+    this.totalInterest = monthlyRate === 0 ? 0 : this.principal * monthlyRate * (n + 1) / 2;
+    this.totalInsurance = currentInsurance * n;
+    this.totalPayment = this.principal + this.totalInterest + this.totalInsurance + this.totalCommission;
 
-    this.generateAmortizationSchedule(monthlyRate, n, 'french');
+    this.generateAmortizationSchedule(monthlyRate, n, 'flat');
   }
 
   addExtraPayment() {
@@ -523,9 +512,9 @@ export class LoanCalculatorComponent implements OnInit, OnDestroy {
         const pureMonthlyPayment = this.monthlyPayment - currentInsurance;
         principalPart = pureMonthlyPayment - interest;
       } else {
-        // Flat rate: interest is constant every month based on initial principal
-        interest = this.totalInterest / numberOfPayments;
+        // Amortización alemana: capital constante, interés sobre saldo actual
         principalPart = this.principal / numberOfPayments;
+        interest = monthlyRate === 0 ? 0 : balance * monthlyRate;
       }
 
       // Apply extra payments for this month
