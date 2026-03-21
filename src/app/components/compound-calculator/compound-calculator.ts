@@ -58,6 +58,9 @@ export class CompoundCalculatorComponent implements OnInit {
   newWithdrawalMonth = signal<number>(12);
   newWithdrawalAmount = signal<number>(1000);
 
+  // Manejo de la comisión de desembolso
+  disbursementHandling = signal<'deduct_from_capital' | 'pay_in_first_installment'>('pay_in_first_installment');
+
   // --- CALCULATIONS ---
 
   // Result mappings
@@ -93,14 +96,14 @@ export class CompoundCalculatorComponent implements OnInit {
     };
   });
 
-  // Signal to handle disbursement subtraction based on loan type
+  // Signal to handle disbursement subtraction based on user selection
   injectedCapitalForInvestment = computed(() => {
     const loan = this.loanData();
     if (!loan) return 0;
-    
-    // Si es crédito personal (french mode/loan), se resta la comisión de desembolso
-    // Si es extrafinanciamiento, el monto de desembolso no se resta (se paga en el siguiente corte)
-    if (loan.calculatorMode === 'loan') {
+
+    // Si se resta del capital, el monto a invertir es principal - comisión
+    // Si se paga en la primera cuota, el monto completo se invierte
+    if (this.disbursementHandling() === 'deduct_from_capital') {
       return loan.principal - loan.totalCommission;
     } else {
       return loan.principal;
@@ -276,9 +279,14 @@ export class CompoundCalculatorComponent implements OnInit {
       .filter((r: any) => r.month <= invMonths)
       .reduce((sum: number, r: any) => sum + r.payment, 0);
 
-    const totalOutofPocket = initialOwnInvestment + paymentsDuringInversion;
+    // Si la comisión se paga en la primera cuota, se resta del profit
+    // (no está incluida en row.payment del schedule)
+    // Si se resta del capital, ya está contabilizada via injectedCapitalForInvestment
+    const commissionCost = (this.disbursementHandling() === 'pay_in_first_installment') ? loan.totalCommission : 0;
 
-    const netProfit = invest.finalBalance - initialOwnInvestment - paymentsDuringInversion;
+    const totalOutofPocket = initialOwnInvestment + paymentsDuringInversion + commissionCost;
+
+    const netProfit = invest.finalBalance - initialOwnInvestment - paymentsDuringInversion - commissionCost;
     const totalCosts = loan.totalInterest + loan.totalCommission + loan.totalInsurance;
 
     return {

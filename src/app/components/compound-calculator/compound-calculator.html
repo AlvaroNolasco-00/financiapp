@@ -101,6 +101,27 @@
         </div>
       </div>
 
+      <!-- Disbursement Handling Option -->
+      <div class="card" style="margin-bottom: 1.5rem; padding: 1.25rem 1.5rem;" *ngIf="loanResults()?.totalCommission">
+        <h4 style="margin: 0 0 0.75rem; font-size: 1rem; color: #f8fafc;">¿Cómo se paga la comisión de desembolso?</h4>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <label style="display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer; color: #cbd5e1; font-size: 0.9rem;">
+            <input type="radio" name="disbursementHandling" value="pay_in_first_installment"
+              [checked]="disbursementHandling() === 'pay_in_first_installment'"
+              (change)="disbursementHandling.set('pay_in_first_installment')"
+              style="margin-top: 2px; accent-color: #6366f1;">
+            <span>Se paga en la primera cuota — el monto total del préstamo ({{ loanResults()?.principal | currency }}) se destina a invertir</span>
+          </label>
+          <label style="display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer; color: #cbd5e1; font-size: 0.9rem;">
+            <input type="radio" name="disbursementHandling" value="deduct_from_capital"
+              [checked]="disbursementHandling() === 'deduct_from_capital'"
+              (change)="disbursementHandling.set('deduct_from_capital')"
+              style="margin-top: 2px; accent-color: #6366f1;">
+            <span>Se resta del monto a invertir — se invierten {{ injectedCapitalForInvestment() | currency }} (préstamo menos comisión)</span>
+          </label>
+        </div>
+      </div>
+
       <!-- Detail Cards -->
       <div class="detail-split">
         <div class="card chart-card">
@@ -135,6 +156,14 @@
           <div class="stat-row">
             <span>Total Pagado al Banco</span>
             <span class="bold text-error">{{ loanResults()?.totalPayment | currency }}</span>
+          </div>
+          <div class="stat-row" style="font-size: 0.85rem; padding-left: 0.5rem; opacity: 0.8;" *ngIf="loanResults()?.totalCommission">
+            <span>• Comisión de Desembolso</span>
+            <span>{{ loanResults()?.totalCommission | currency }}</span>
+          </div>
+          <div class="stat-row" style="font-size: 0.85rem; padding-left: 0.5rem; opacity: 0.8;" *ngIf="loanResults()?.totalInsurance">
+            <span>• Total Seguro Pagado</span>
+            <span>{{ loanResults()?.totalInsurance | currency }}</span>
           </div>
           <div class="stat-row" style="font-size: 0.85rem; padding-left: 0.5rem; opacity: 0.8;">
             <span>• Cuotas del Préstamo Pagadas</span>
