@@ -1,10 +1,12 @@
-import { Component, OnInit, signal, computed, ChangeDetectionStrategy, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, signal, computed, ChangeDetectionStrategy, ViewChild, ElementRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BaseChartDirective, provideCharts, withDefaultRegisterables } from 'ng2-charts';
 import { ChartConfiguration, ChartData, Chart, Plugin } from 'chart.js';
 import { LoanCalculatorComponent } from '../loan-calculator/loan-calculator';
 import { InvestmentCalculatorComponent } from '../investment-calculator/investment-calculator';
+import { PdfExportService, captureChartForPdf } from '../../services/pdf-export.service';
+import { formatCurrency, formatInteger } from '../../services/csv-export.service';
 
 interface AmortizationRow {
   month: number;
@@ -44,6 +46,9 @@ interface ExtraPayment {
 })
 export class CompoundCalculatorComponent implements OnInit {
   @ViewChild('withdrawalsSection') withdrawalsSection!: ElementRef;
+  @ViewChild('compoundChart') compoundChart!: BaseChartDirective;
+
+  private pdfExport = inject(PdfExportService);
 
   // UI State
   activeStep = signal<'loan' | 'investment' | 'results'>('loan');
@@ -118,21 +123,29 @@ export class CompoundCalculatorComponent implements OnInit {
 
     const invSchedule = [...inv.results.investmentSchedule];
     const loanSchedule = loan.amortizationSchedule;
+    let postInversionOutofPocket = 0;
     
     // We extend the schedule IF loan duration > investment duration
     if (loanSchedule.length > invSchedule.length) {
       let currentBalance = inv.results.finalBalance; // realEquity
-      const monthlyPayment = loan.monthlyPayment;
 
       for (let i = invSchedule.length + 1; i <= loanSchedule.length; i++) {
-        currentBalance = Math.max(0, currentBalance - monthlyPayment);
+        const loanRow = loanSchedule.find((r: any) => r.month === i);
+        const actualPayment = loanRow ? loanRow.payment : 0;
         
+        if (currentBalance < actualPayment) {
+           postInversionOutofPocket += (actualPayment - currentBalance);
+           currentBalance = 0;
+        } else {
+           currentBalance -= actualPayment;
+        }
+
         // Push a row that simulates the decay
         // Note: leveragedBalance also decays
         invSchedule.push({
           month: i,
           year: Math.ceil(i / 12),
-          startingBalance: (currentBalance + monthlyPayment) * (inv.leverage || 1),
+          startingBalance: (currentBalance + actualPayment) * (inv.leverage || 1),
           contribution: 0,
           interestEarned: 0,
           endingBalance: currentBalance * (inv.leverage || 1),
@@ -146,11 +159,15 @@ export class CompoundCalculatorComponent implements OnInit {
       return {
         ...inv.results,
         finalBalance: currentBalance,
-        investmentSchedule: invSchedule
+        investmentSchedule: invSchedule,
+        postInversionOutofPocket: postInversionOutofPocket
       };
     }
 
-    return inv.results;
+    return { 
+        ...inv.results, 
+        postInversionOutofPocket: 0 
+    };
   });
 
   // Re-calculating the chart trends specifically for the comparativa
@@ -275,18 +292,22 @@ export class CompoundCalculatorComponent implements OnInit {
     // netProfit = invest.finalBalance (que ya tiene restadas las cuotas restantes) - initialOwnInvestment - (cuotas pagadas durante vida inversion)
     
     const invMonths = this.investmentData()?.results.investmentSchedule.length || 0;
+    
+    // Only subtract pure loan payments (excluding "extra" money which was withdrawn from investment)
+    // If we count "r.extra", we double-deduct because that money wasn't out-of-pocket, it came from the investment value.
     const paymentsDuringInversion = loan.schedule
       .filter((r: any) => r.month <= invMonths)
-      .reduce((sum: number, r: any) => sum + r.payment, 0);
+      .reduce((sum: number, r: any) => sum + (r.payment - (r.extra || 0)), 0);
 
     // Si la comisión se paga en la primera cuota, se resta del profit
     // (no está incluida en row.payment del schedule)
     // Si se resta del capital, ya está contabilizada via injectedCapitalForInvestment
     const commissionCost = (this.disbursementHandling() === 'pay_in_first_installment') ? loan.totalCommission : 0;
+    const postInversionOutofPocket = invest.postInversionOutofPocket || 0;
 
-    const totalOutofPocket = initialOwnInvestment + paymentsDuringInversion + commissionCost;
+    const totalOutofPocket = initialOwnInvestment + paymentsDuringInversion + commissionCost + postInversionOutofPocket;
 
-    const netProfit = invest.finalBalance - initialOwnInvestment - paymentsDuringInversion - commissionCost;
+    const netProfit = invest.finalBalance - initialOwnInvestment - paymentsDuringInversion - commissionCost - postInversionOutofPocket;
     const totalCosts = loan.totalInterest + loan.totalCommission + loan.totalInsurance;
 
     return {
@@ -402,6 +423,65 @@ export class CompoundCalculatorComponent implements OnInit {
       x: { grid: { display: false }, ticks: { color: '#94a3b8', autoSkip: true, maxTicksLimit: 12 } }
     }
   };
+
+  exportPdf(): void {
+    const loan = this.loanResults();
+    const invest = this.investmentResults();
+    const net = this.netResult();
+    if (!loan || !invest) return;
+
+    const timestamp = new Date().toISOString().slice(0, 10);
+
+    this.pdfExport.exportReport({
+      title: 'Reporte de Inversión Apalancada',
+      filename: `simulacion-compuesta-${timestamp}`,
+
+      summary: [
+        { label: 'Ganancia Real Neta',        value: `$${formatCurrency(net.netProfit)}`,              highlight: true },
+        { label: 'Valor Final de la Inversión', value: `$${formatCurrency(invest.finalBalance)}` },
+        { label: 'Interés Generado',           value: `$${formatCurrency(invest.totalInterestEarned)}` },
+        { label: 'Costo del Crédito',          value: `$${formatCurrency(net.totalCosts)}` },
+        { label: 'Cuota Mensual Préstamo',     value: `$${formatCurrency(loan.monthlyPayment)}` },
+        { label: 'Total Pagado al Banco',      value: `$${formatCurrency(loan.totalPayment)}` },
+        { label: 'Total de Cartera',           value: `$${formatCurrency(net.totalOutofPocket)}` },
+      ],
+
+      charts: [
+        {
+          title: 'Evolución: Deuda vs. Inversión',
+          base64: this.compoundChart ? captureChartForPdf(this.compoundChart, 900, 400) : '',
+        },
+      ],
+
+      tables: [
+        {
+          title: 'Desglose de la Inversión',
+          data: invest.schedule ?? [],
+          columns: [
+            { key: 'year',                header: 'Año',           format: formatInteger,  align: 'center' },
+            { key: 'month',               header: 'Mes',           format: formatInteger,  align: 'center' },
+            { key: 'startingBalance',     header: 'Saldo Inicial', format: formatCurrency, align: 'right' },
+            { key: 'contribution',        header: 'Contribución',  format: formatCurrency, align: 'right' },
+            { key: 'interestEarned',      header: 'Interés',       format: formatCurrency, align: 'right' },
+            { key: 'totalInterestEarned', header: 'Interés Acum.', format: formatCurrency, align: 'right' },
+            { key: 'endingBalance',       header: 'Saldo Final',   format: formatCurrency, align: 'right' },
+          ],
+        },
+        {
+          title: 'Tabla de Amortización del Préstamo',
+          data: loan.schedule ?? [],
+          columns: [
+            { key: 'month',     header: 'Mes',            format: formatInteger,  align: 'center' },
+            { key: 'payment',   header: 'Cuota',          format: formatCurrency, align: 'right' },
+            { key: 'principal', header: 'Capital',        format: formatCurrency, align: 'right' },
+            { key: 'interest',  header: 'Interés',        format: formatCurrency, align: 'right' },
+            { key: 'insurance', header: 'Seguro',         format: formatCurrency, align: 'right' },
+            { key: 'balance',   header: 'Saldo Restante', format: formatCurrency, align: 'right' },
+          ],
+        },
+      ],
+    });
+  }
 
   onLoanData(data: any) {
     this.loanData.set(data);

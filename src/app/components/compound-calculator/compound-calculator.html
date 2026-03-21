@@ -128,7 +128,7 @@
           <h3>Evolución: Deuda vs. Inversión</h3>
           <div class="chart-wrapper" style="min-height: 350px;">
             <div class="chart-container-absolute">
-              <canvas baseChart
+              <canvas baseChart #compoundChart="base-chart"
                 [data]="lineChartData()"
                 [options]="lineChartOptions"
                 [type]="'line'"
@@ -252,6 +252,7 @@
       <div class="action-footer">
         <button class="btn-secondary" (click)="setStep('investment')"><span>✏️</span> Ajustar Inversión</button>
         <button class="btn-secondary" (click)="setStep('loan')"><span>✏️</span> Ajustar Préstamo</button>
+        <button class="btn-export" (click)="exportPdf()">Exportar PDF</button>
       </div>
     </div>
 

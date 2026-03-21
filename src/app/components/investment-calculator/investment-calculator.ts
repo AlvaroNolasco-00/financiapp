@@ -1,8 +1,10 @@
-import { Component, OnInit, signal, computed, ChangeDetectionStrategy, input, Output, EventEmitter, effect } from '@angular/core';
+import { Component, OnInit, signal, computed, ChangeDetectionStrategy, input, Output, EventEmitter, effect, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BaseChartDirective, provideCharts, withDefaultRegisterables } from 'ng2-charts';
 import { ChartConfiguration, ChartData } from 'chart.js';
+import { CsvExportService, CsvColumnConfig, formatCurrency, formatInteger } from '../../services/csv-export.service';
+import { PdfExportService, PdfReportConfig, captureChartForPdf } from '../../services/pdf-export.service';
 
 interface InvestmentRow {
   month: number;
@@ -27,6 +29,93 @@ interface InvestmentRow {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class InvestmentCalculatorComponent implements OnInit {
+  @ViewChild('lineChart') lineChart!: BaseChartDirective;
+  @ViewChild('doughnutChart') doughnutChart!: BaseChartDirective;
+  @ViewChild('leverageChart') leverageChart!: BaseChartDirective;
+
+  private csvExport = inject(CsvExportService);
+  private pdfExport = inject(PdfExportService);
+
+  private csvColumns: CsvColumnConfig<{ year: number; month: number; startingBalance: number; contribution: number; interestEarned: number; totalInterestEarned: number; endingBalance: number }>[] = [
+    { key: 'year',                header: 'Año',               format: formatInteger },
+    { key: 'month',               header: 'Mes',               format: formatInteger },
+    { key: 'startingBalance',     header: 'Saldo Inicial',     format: formatCurrency },
+    { key: 'contribution',        header: 'Contribución',      format: formatCurrency },
+    { key: 'interestEarned',      header: 'Interés',           format: formatCurrency },
+    { key: 'totalInterestEarned', header: 'Interés Acum.',     format: formatCurrency },
+    { key: 'endingBalance',       header: 'Saldo Final',       format: formatCurrency },
+  ];
+
+  exportCsv(): void {
+    const schedule = this.investmentResults().investmentSchedule;
+    this.csvExport.exportTable(schedule, this.csvColumns as any, {
+      filename: `inversion-${this.years()}-anios`
+    });
+  }
+
+  exportPdf(): void {
+    const results = this.investmentResults();
+    const rendimiento = results.totalInvested > 0
+      ? (results.totalInterestEarned / results.totalInvested) * 100
+      : 0;
+
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const config: PdfReportConfig<InvestmentRow> = {
+      title: 'Reporte de Inversión',
+      filename: `inversion-${timestamp}`,
+
+      parameters: [
+        { label: 'Inversión Inicial',     value: `$${formatCurrency(this.initialInvestment())}` },
+        { label: 'Contribución Mensual',  value: `$${formatCurrency(this.monthlyContribution())}` },
+        { label: 'Tasa Anual',            value: `${this.annualRate()}%` },
+        { label: 'Plazo',                 value: `${this.years()} años` },
+        { label: 'Tipo de Interés',       value: this.interestType() === 'compuesto' ? 'Compuesto' : 'Simple' },
+        { label: 'Apalancamiento',        value: `${this.leverage()}x` },
+      ],
+
+      summary: [
+        { label: 'Saldo Final',              value: `$${formatCurrency(results.finalBalance)}`,          highlight: true },
+        { label: 'Total Invertido',          value: `$${formatCurrency(results.totalInvested)}` },
+        { label: 'Intereses Ganados',        value: `$${formatCurrency(results.totalInterestEarned)}` },
+        { label: 'Rendimiento Total',        value: `${rendimiento.toFixed(2)}%` },
+        { label: 'Referencia Bancaria (3%)', value: `$${formatCurrency(results.bankReferenceBalance)}` },
+      ],
+
+      charts: [
+        {
+          title: 'Crecimiento del Patrimonio',
+          base64: this.lineChart ? captureChartForPdf(this.lineChart, 900, 380) : '',
+        },
+        {
+          title: 'Distribución Capital vs Interés',
+          base64: this.doughnutChart ? captureChartForPdf(this.doughnutChart, 600, 400) : '',
+        },
+        {
+          title: this.leverage() === 1
+            ? 'Comparativa: Inversión vs Banco (3%)'
+            : `Comparativa: Sin Apalancamiento vs ${this.leverage()}x`,
+          base64: this.leverageChart ? captureChartForPdf(this.leverageChart, 900, 380) : '',
+        },
+      ],
+
+      table: {
+        title: `Desglose de Crecimiento a ${this.years()} años`,
+        data: results.investmentSchedule,
+        columns: [
+          { key: 'year',                header: 'Año',           format: formatInteger,  align: 'center' },
+          { key: 'month',               header: 'Mes',           format: formatInteger,  align: 'center' },
+          { key: 'startingBalance',     header: 'Saldo Inicial', format: formatCurrency, align: 'right' },
+          { key: 'contribution',        header: 'Contribución',  format: formatCurrency, align: 'right' },
+          { key: 'interestEarned',      header: 'Interés',       format: formatCurrency, align: 'right' },
+          { key: 'totalInterestEarned', header: 'Interés Acum.', format: formatCurrency, align: 'right' },
+          { key: 'endingBalance',       header: 'Saldo Final',   format: formatCurrency, align: 'right' },
+        ],
+      },
+    };
+
+    this.pdfExport.exportReport(config);
+  }
+
   // Inputs
   initialInvestment = signal<number>(10000);
   monthlyContribution = signal<number>(500);

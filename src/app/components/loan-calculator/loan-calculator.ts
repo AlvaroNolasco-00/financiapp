@@ -11,6 +11,7 @@ interface AmortizationRow {
   interest: number;
   insurance: number;
   balance: number;
+  extra: number;
 }
 
 interface ExtraPayment {
@@ -556,7 +557,8 @@ export class LoanCalculatorComponent implements OnInit, OnDestroy {
         principal: principalPart + extra,
         interest: interest,
         insurance: currentInsurance,
-        balance: Math.max(0, balance)
+        balance: Math.max(0, balance),
+        extra: extra
       });
 
       // Update chart labels and trends

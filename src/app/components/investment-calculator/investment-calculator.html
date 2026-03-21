@@ -170,7 +170,7 @@
       <h3>Crecimiento del Patrimonio</h3>
       <div class="chart-wrapper">
         <div class="chart-container-absolute">
-          <canvas baseChart
+          <canvas baseChart #lineChart="base-chart"
             [data]="lineChartData()"
             [options]="lineChartOptions"
             [type]="'line'">
@@ -186,7 +186,7 @@
       </div>
       <div class="chart-wrapper" style="min-height: 250px;">
         <div class="chart-container-absolute">
-          <canvas baseChart
+          <canvas baseChart #doughnutChart="base-chart"
             [data]="doughnutChartData()"
             [options]="doughnutChartOptions"
             [type]="'doughnut'">
@@ -202,7 +202,7 @@
       </div>
       <div class="chart-wrapper" style="min-height: 250px;">
         <div class="chart-container-absolute">
-          <canvas baseChart
+          <canvas baseChart #leverageChart="base-chart"
             [data]="leverageChartData()"
             [options]="lineChartOptions"
             [type]="'line'">
@@ -216,7 +216,8 @@
   <div class="table-panel card-premium" *ngIf="!isEmbedded()">
     <div class="table-header">
       <h3>Desglose de Crecimiento a {{ years() }} años</h3>
-      <button class="btn-export" disabled>Exportar CSV</button>
+      <button class="btn-export" (click)="exportCsv()">Exportar CSV</button>
+      <button class="btn-export" (click)="exportPdf()">Exportar PDF</button>
     </div>
     <div class="table-scroll">
       <table>
